@@ -49,6 +49,7 @@
     <type fullname="StaminaGaugeBinder" preserve="all" />
     <type fullname="StaminaUnlimitedView" preserve="all" />
     <type fullname="StatMenuRive" preserve="all" />
+    <type fullname="StatPickView" preserve="all" />
     <type fullname="StepColliderSet" preserve="all" />
     <type fullname="ToastView" preserve="all" />
     <type fullname="UiButtonFx" preserve="all" />

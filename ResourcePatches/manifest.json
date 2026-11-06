@@ -1,10 +1,10 @@
 {
     "schema": 1,
-    "clientId": "833cdd28",
-    "revision": "b3ceee52b63d2c5f",
+    "clientId": "a1bc97d0xc3b9df31",
+    "revision": "eafff634181489dd",
     "platform": "WebGL",
-    "codeHash": "7d603661811e8a28",
-    "embeddedHash": "5bc7128c503b3c80",
+    "codeHash": "c3b9df31737ec618",
+    "embeddedHash": "d522f3c4433a1775",
     "addressables": true,
     "entries": [
         {
@@ -26,6 +26,6 @@
             "crc": 2588430496
         }
     ],
-    "sourceHash": "2cefd78355029204",
-    "artifactHash": "921806a0d972e789"
+    "sourceHash": "92854f88299b378d",
+    "artifactHash": "44876af9ca373ac2"
 }
