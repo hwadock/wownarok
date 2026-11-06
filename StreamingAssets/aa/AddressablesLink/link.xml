@@ -6,6 +6,7 @@
     <type fullname="AttackHitReceiver" preserve="all" />
     <type fullname="BuffView" preserve="all" />
     <type fullname="ButtonCooldownFill" preserve="all" />
+    <type fullname="CanyonVolumeFog" preserve="all" />
     <type fullname="ChargeGaugeRive" preserve="all" />
     <type fullname="ChatView" preserve="all" />
     <type fullname="CombatActor" preserve="all" />
