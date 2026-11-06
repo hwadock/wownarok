@@ -1,31 +1,31 @@
 {
-  "schema": 1,
-  "clientId": "04e8c4ec",
-  "revision": "bf8175ea574b0548",
-  "platform": "WebGL",
-  "codeHash": "48dd597b3a940a35",
-  "embeddedHash": "384a450129ede4d0",
-  "addressables": true,
-  "entries": [
-    {
-      "address": "actor/hero_000/spines/hero_000_SkeletonData",
-      "bundle": "spine_hero_000_0b67180b29f893daddabd19584168fb5.bundle",
-      "hash": "b92f41f47efa384f237ee949d091324b",
-      "crc": 969660234
-    },
-    {
-      "address": "actor/mob_001/spines/mob_001_SkeletonData",
-      "bundle": "spine_mob_001_84f024ea46a8344b94645a3f28f69088.bundle",
-      "hash": "56b1fd806aa0cf22a0c1ae0100866763",
-      "crc": 2099734218
-    },
-    {
-      "address": "actor/mob_desert/spines/mob_desert_SkeletonData",
-      "bundle": "spine_mob_desert_b117b793dfe277d75221ff38ea2938db.bundle",
-      "hash": "edccd51e37b95917c6665cf0e1163df4",
-      "crc": 2677762339
-    }
-  ],
-  "sourceHash": "bf48a974b0e1df5c",
-  "artifactHash": "c1772010f8c94706"
+    "schema": 1,
+    "clientId": "833cdd28",
+    "revision": "b3ceee52b63d2c5f",
+    "platform": "WebGL",
+    "codeHash": "7d603661811e8a28",
+    "embeddedHash": "5bc7128c503b3c80",
+    "addressables": true,
+    "entries": [
+        {
+            "address": "actor/hero_000/spines/hero_000_SkeletonData",
+            "bundle": "spine_hero_000_d03c5dc746d273f58b0ccc2bb5be0176.bundle",
+            "hash": "094538ac0e2abe3f23c5b8815445c2fc",
+            "crc": 3151427646
+        },
+        {
+            "address": "actor/mob_001/spines/mob_001_SkeletonData",
+            "bundle": "spine_mob_001_6103a94172911a34669196a13a7b80fc.bundle",
+            "hash": "705889f2a1b6e6015a6718fb3dcca5ac",
+            "crc": 2371358406
+        },
+        {
+            "address": "actor/mob_desert/spines/mob_desert_SkeletonData",
+            "bundle": "spine_mob_desert_a6f80aa4a6d06ee7a25ef4a9059e6cef.bundle",
+            "hash": "3635c6c53a4f198c4f1ecab217eec144",
+            "crc": 2588430496
+        }
+    ],
+    "sourceHash": "2cefd78355029204",
+    "artifactHash": "921806a0d972e789"
 }
