@@ -4,10 +4,15 @@
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <title>wownarok</title>
-    <link rel="shortcut icon" href="TemplateData/favicon.ico">
+    <link rel="icon" type="image/png" href="TemplateData/favicon-32.png">
+    <link rel="apple-touch-icon" href="TemplateData/app-icon-180.png">
+    <link rel="manifest" href="TemplateData/manifest.webmanifest">
+    <meta name="apple-mobile-web-app-title" content="WOWNAROK">
+    <meta name="theme-color" content="#241A14">
     <link rel="stylesheet" href="TemplateData/style.css">
   <script>window.__roBootLogoUrl="TemplateData/boot_logo.png?v=02ea7592d964";</script>
 <style>#ro-logo{display:block;width:min(78vw,420px);height:auto;margin:0 auto 14px}#unity-progress-bar-empty{margin:10px auto 0}</style>
+<style>body{overflow:hidden}#unity-build-title{display:none}#unity-fullscreen-button{position:relative}#unity-fullscreen-button::before{content:"전체 화면";position:absolute;right:44px;top:9px;white-space:nowrap;font:bold 14px sans-serif;color:#EBDDBC;background:#2E2018;border:1px solid #C9963F;border-radius:4px;padding:2px 8px}</style>
 </head>
   <body>
     <div id="unity-container" class="unity-desktop">
@@ -58,7 +63,7 @@
         updateBannerVisibility();
       }
 
-      var buildUrl = (function () { try { var x = new XMLHttpRequest(); x.open("GET", "version.txt?t=" + Date.now(), false); x.send(); var v = (x.status == 200 ? x.responseText : "").trim(); if (/^[0-9a-zA-Z]{4,40}$/.test(v)) return "b_" + v; } catch (e) {} return "b_75d2760fx2f8da9c9"; })();
+      var buildUrl = (function () { try { var x = new XMLHttpRequest(); x.open("GET", "version.txt?t=" + Date.now(), false); x.send(); var v = (x.status == 200 ? x.responseText : "").trim(); if (/^[0-9a-zA-Z]{4,40}$/.test(v)) return "b_" + v; } catch (e) {} return "b_6acaf2d1x0076c1be"; })();
       var loaderUrl = buildUrl + "/WebGL.loader.js";
       var config = {
         arguments: [],
@@ -119,8 +124,15 @@
 
       } else {
         // Desktop style: Render the game canvas container in a window that can be maximized to fullscreen:
-        fullscreenContainer.style.width = "540px";
-        fullscreenContainer.style.height = "960px";
+        var roFitDesktop = function () {
+          var s = Math.min(window.innerWidth / 540, (window.innerHeight - 40) / 960);
+          if (document.fullscreenElement) s = Math.min(window.innerWidth / 540, window.innerHeight / 960);
+          fullscreenContainer.style.width = Math.floor(540 * s) + "px";
+          fullscreenContainer.style.height = Math.floor(960 * s) + "px";
+        };
+        roFitDesktop();
+        window.addEventListener("resize", roFitDesktop);
+        document.addEventListener("fullscreenchange", roFitDesktop);
       }
 
 
