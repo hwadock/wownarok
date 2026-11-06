@@ -58,7 +58,7 @@
         updateBannerVisibility();
       }
 
-      var buildUrl = (function () { try { var x = new XMLHttpRequest(); x.open("GET", "version.txt?t=" + Date.now(), false); x.send(); var v = (x.status == 200 ? x.responseText : "").trim(); if (/^[0-9a-zA-Z]{4,40}$/.test(v)) return "b_" + v; } catch (e) {} return "b_0524cd4exeb71e934"; })();
+      var buildUrl = (function () { try { var x = new XMLHttpRequest(); x.open("GET", "version.txt?t=" + Date.now(), false); x.send(); var v = (x.status == 200 ? x.responseText : "").trim(); if (/^[0-9a-zA-Z]{4,40}$/.test(v)) return "b_" + v; } catch (e) {} return "b_720e2890x9acec1a5"; })();
       var loaderUrl = buildUrl + "/WebGL.loader.js";
       var config = {
         arguments: [],
