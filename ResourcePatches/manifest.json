@@ -1,31 +1,31 @@
 {
     "schema": 1,
-    "clientId": "b6e2df4exf5f8069d",
-    "revision": "1ebd3a4ca4eb5bbc",
+    "clientId": "4b3294d1xc56db25f",
+    "revision": "ad5c98d20731c3db",
     "platform": "WebGL",
-    "codeHash": "f5f8069dc26e30ff",
-    "embeddedHash": "898d930604feb335",
+    "codeHash": "c56db25f3b9a6e45",
+    "embeddedHash": "b4ffaf6d887e4ab0",
     "addressables": true,
     "entries": [
         {
             "address": "actor/hero_000/spines/hero_000_SkeletonData",
-            "bundle": "spine_hero_000_d52e6e368d0db165b2b21767b6abeec5.bundle",
-            "hash": "dff62470ba0c5ccdfb7d50b1932e93a4",
-            "crc": 4146960223
+            "bundle": "spine_hero_000_f42a624abe4cfd596206891b472f7298.bundle",
+            "hash": "909a36c5fa75cf54c22f11e5b8ca4835",
+            "crc": 3172243926
         },
         {
             "address": "actor/mob_001/spines/mob_001_SkeletonData",
-            "bundle": "spine_mob_001_6103a94172911a34669196a13a7b80fc.bundle",
-            "hash": "705889f2a1b6e6015a6718fb3dcca5ac",
-            "crc": 2371358406
+            "bundle": "spine_mob_001_2df30edb04962ffbc9cfce7a05fdf049.bundle",
+            "hash": "33bce3b1ac071ba81ce853f426750bd6",
+            "crc": 3273978781
         },
         {
             "address": "actor/mob_desert/spines/mob_desert_SkeletonData",
-            "bundle": "spine_mob_desert_a6f80aa4a6d06ee7a25ef4a9059e6cef.bundle",
-            "hash": "3635c6c53a4f198c4f1ecab217eec144",
-            "crc": 2588430496
+            "bundle": "spine_mob_desert_9324f3fc70a4de7016e208ae96674370.bundle",
+            "hash": "fec92a409923d02157508b9fe7d3b583",
+            "crc": 3851007626
         }
     ],
-    "sourceHash": "4596854839333c94",
-    "artifactHash": "33a4d358e850fab1"
+    "sourceHash": "108178bca58ada94",
+    "artifactHash": "1d41eb03dd8bbbe2"
 }

@@ -48,7 +48,6 @@
     <type fullname="SkillLockOverlay" preserve="all" />
     <type fullname="StaminaGaugeBinder" preserve="all" />
     <type fullname="StaminaUnlimitedView" preserve="all" />
-    <type fullname="StatMenuRive" preserve="all" />
     <type fullname="StatPickView" preserve="all" />
     <type fullname="StepColliderSet" preserve="all" />
     <type fullname="ToastView" preserve="all" />
@@ -71,23 +70,6 @@
   </assembly>
   <assembly fullname="HDtools.SpineRender, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
     <type fullname="HDtools.HDMapEnvZone" preserve="all" />
-  </assembly>
-  <assembly fullname="Rive.Runtime, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-    <type fullname="Rive.Asset" preserve="all" />
-    <type fullname="Rive.EmbeddedAssetData" preserve="nothing" serialized="true" />
-    <type fullname="Rive.FileMetadata" preserve="nothing" serialized="true" />
-    <type fullname="Rive.FileMetadata/ArtboardMetadata" preserve="nothing" serialized="true" />
-    <type fullname="Rive.FileMetadata/StateMachineMetadata" preserve="nothing" serialized="true" />
-    <type fullname="Rive.FileMetadata/ViewModelMetadata" preserve="nothing" serialized="true" />
-    <type fullname="Rive.FileMetadata/ViewModelPropertyMetadata" preserve="nothing" serialized="true" />
-    <type fullname="Rive.Alignment" preserve="nothing" serialized="true" />
-  </assembly>
-  <assembly fullname="Rive.Runtime.Components, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-    <type fullname="Rive.Components.CanvasRendererRawImage" preserve="all" />
-    <type fullname="Rive.Components.PanelContextPreviewManager" preserve="all" />
-    <type fullname="Rive.Components.RiveCanvasRenderer" preserve="all" />
-    <type fullname="Rive.Components.RivePanel" preserve="all" />
-    <type fullname="Rive.Components.RiveWidget" preserve="all" />
   </assembly>
   <assembly fullname="spine-timeline, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
     <type fullname="Spine.Unity.Playables.SpineAnimationStateClip" preserve="all" />
