@@ -69,7 +69,7 @@
     if(!scope)return;var els=[scope].concat(Array.from(scope.querySelectorAll('div,button,section')));
     els.forEach(function(el){
       if(el.classList.contains('ro-tex'))return;
-      var w=el.offsetWidth,h=el.offsetHeight;if(w<160||h<46||w*h<16000)return;   // 작은 버튼·칸은 그대로
+      var w=el.offsetWidth,h=el.offsetHeight;if(!el.classList.contains('ro-race-tile')&&(w<160||h<46||w*h<16000))return;   // 작은 버튼·칸은 그대로 — 종족 카드는 크기와 무관하게 무늬(QA B8: 375px 휴대폰에서 안 붙었다)
       var cs=getComputedStyle(el),bi=cs.backgroundImage;if(!bi||bi.indexOf('gradient')<0)return;
       var pre=getComputedStyle(el,'::before').content;if(pre&&pre!=='none'&&pre!=='normal')return;   // 이미 ::before 를 쓰는 요소는 건드리지 않는다
       var k=kindOf(bi);if(!k)return;
