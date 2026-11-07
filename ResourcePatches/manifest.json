@@ -1,17 +1,17 @@
 {
     "schema": 1,
-    "clientId": "e157a554x1ca213e8",
-    "revision": "a83bb3d66ba97520",
+    "clientId": "3068a28cxd1490ef5",
+    "revision": "370fd1681b5987c1",
     "platform": "WebGL",
-    "codeHash": "1ca213e8136778f9",
-    "embeddedHash": "b710c93b09105d71",
+    "codeHash": "d1490ef528b4f773",
+    "embeddedHash": "e06f67f4838735ff",
     "addressables": true,
     "entries": [
         {
             "address": "actor/hero_000/spines/hero_000_SkeletonData",
-            "bundle": "spine_hero_000_0b15732418f3871582216708dfa7e70a.bundle",
-            "hash": "c2a5e5bf7fa2f1ccba4b3eafb9a2f343",
-            "crc": 924968045
+            "bundle": "spine_hero_000_6004f05ed85c11bc7dd6db975ce1db6b.bundle",
+            "hash": "76f9816597949b9bd6a3f80113bf5100",
+            "crc": 3835547865
         },
         {
             "address": "actor/mob_001/spines/mob_001_SkeletonData",
@@ -26,6 +26,6 @@
             "crc": 3851007626
         }
     ],
-    "sourceHash": "ce91e4765b50b78d",
-    "artifactHash": "2795e3611c74c3ed"
+    "sourceHash": "dc50a5d5bd03906c",
+    "artifactHash": "bccf465d0060d811"
 }
