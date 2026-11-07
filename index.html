@@ -63,7 +63,10 @@
         updateBannerVisibility();
       }
 
-      var buildUrl = (function () { try { var x = new XMLHttpRequest(); x.open("GET", "version.txt?t=" + Date.now(), false); x.send(); var v = (x.status == 200 ? x.responseText : "").trim(); if (/^[0-9a-zA-Z]{4,40}$/.test(v)) return "b_" + v; } catch (e) {} return "b_3068a28cxd1490ef5"; })();
+      var roGet = function (f) { try { var x = new XMLHttpRequest(); x.open("GET", f + "?t=" + Date.now(), false); x.send(); return x.status == 200 ? x.responseText.trim() : ""; } catch (e) { return ""; } };
+      var roCode = roGet("version.txt"); if (!/^[0-9a-zA-Z]{4,40}$/.test(roCode)) roCode = "c12e8703xd7a6acf4";
+      var roCdn = roGet("cdn.txt").replace(/\/+$/, ""); if (!/^https?:\/\/[^\s\/"'<>]+(\/[^\s"'<>]*)?$/.test(roCdn)) roCdn = "";
+      var buildUrl = "b_" + roCode;
       var loaderUrl = buildUrl + "/WebGL.loader.js";
       var config = {
         arguments: [],
@@ -159,7 +162,30 @@
               });
             };
 
-      document.body.appendChild(script);
+      script.onerror = function () { alert("게임 파일을 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요."); };
+      (function () {
+        var go = function () { document.body.appendChild(script); };
+        if (!roCdn) { go(); return; }
+        var base = roCdn + "/v_" + roCode + "/", done = false;
+        var ctl = window.AbortController ? new AbortController() : null;
+        var finish = function (ok) {
+          if (done) return;
+          done = true;
+          if (ok) {
+            ["dataUrl", "frameworkUrl", "codeUrl", "symbolsUrl"].forEach(function (k) { if (typeof config[k] == "string" && config[k].indexOf(buildUrl + "/") == 0) config[k] = base + "Build" + config[k].substring(buildUrl.length); });
+            buildUrl = base + "Build";
+            loaderUrl = buildUrl + "/WebGL.loader.js";
+            config.streamingAssetsUrl = base + "StreamingAssets";
+            script.src = loaderUrl;
+          } else {
+            if (ctl) ctl.abort();
+            console.warn("[RO] 웹 파일 서버(" + base + ")를 확인하지 못해 Pages 판으로 받습니다.");
+          }
+          go();
+        };
+        setTimeout(function () { finish(false); }, 3000);
+        try { fetch(base + "Build/WebGL.loader.js", { method: "HEAD", cache: "no-store", mode: "cors", signal: ctl ? ctl.signal : undefined }).then(function (r) { finish(r.ok); }, function () { finish(false); }); } catch (e) { finish(false); }
+      })();
 
     </script>
   </body>
