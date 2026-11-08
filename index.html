@@ -10,8 +10,8 @@
     <meta name="apple-mobile-web-app-title" content="WOWNAROK">
     <meta name="theme-color" content="#241A14">
     <link rel="stylesheet" href="TemplateData/style.css">
-  <script>window.__roBootLogoUrl="TemplateData/boot_logo.png?v=d35708a439ef";</script>
-<style>#ro-logo{display:block;width:min(78vw,420px);height:auto;margin:0 auto 14px}#unity-progress-bar-empty{margin:10px auto 0}</style>
+  <style>#ro-logo{width:min(23vw,126px)!important;image-rendering:pixelated;image-rendering:crisp-edges}</style>
+<script>window.__roBootLogoUrl="TemplateData/boot_logo.png?v=d35708a439ef";</script>
 <style>body{overflow:hidden;word-break:keep-all;overflow-wrap:anywhere}#unity-build-title{display:none}#unity-fullscreen-button{position:relative}#unity-fullscreen-button::before{content:"전체 화면";position:absolute;right:44px;top:9px;white-space:nowrap;font:bold 14px sans-serif;color:#EBDDBC;background:#2E2018;border:1px solid #C9963F;border-radius:4px;padding:2px 8px}</style>
 </head>
   <body>
@@ -20,7 +20,7 @@
         <canvas id="unity-canvas" width="540" height="960" tabindex="-1"></canvas>
         <div id="unity-loading-container">
           <div id="unity-loading-bar">
-            <img id="ro-logo" src="TemplateData/boot_logo.png?v=d35708a439ef" alt="WOWNAROK">
+            <img id="ro-logo" src="TemplateData/boot_splash.gif?v=e0f846ac4423" alt="WOWNAROK">
             <div id="unity-progress-bar-empty">
               <div id="unity-progress-bar-full"></div>
             </div>
@@ -64,7 +64,7 @@
       }
 
       var roGet = function (f) { try { var x = new XMLHttpRequest(); x.open("GET", f + "?t=" + Date.now(), false); x.send(); return x.status == 200 ? x.responseText.trim() : ""; } catch (e) { return ""; } };
-      var roCode = roGet("version.txt"); if (!/^[0-9a-zA-Z]{4,40}$/.test(roCode)) roCode = "5bdf8e9dxad85d256";
+      var roCode = roGet("version.txt"); if (!/^[0-9a-zA-Z]{4,40}$/.test(roCode)) roCode = "17c33121x63004126";
       var roCdn = roGet("cdn.txt").replace(/\/+$/, ""); if (!/^https?:\/\/[^\s\/"'<>]+(\/[^\s"'<>]*)?$/.test(roCdn)) roCdn = "";
       var buildUrl = "b_" + roCode;
       var loaderUrl = buildUrl + "/WebGL.loader.js";
