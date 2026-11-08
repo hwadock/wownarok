@@ -1,1 +1,1 @@
-wss://invitation-weighted-express-coming.trycloudflare.com
+wss://game.wownarok.com
