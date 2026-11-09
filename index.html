@@ -11,7 +11,7 @@
     <meta name="theme-color" content="#241A14">
     <link rel="stylesheet" href="TemplateData/style.css">
   <style>#ro-logo{display:block;width:min(23vw,126px)!important;height:auto;margin:0 auto 14px;image-rendering:pixelated;image-rendering:crisp-edges}#unity-progress-bar-empty{margin:10px auto 0}</style>
-<script>window.__roBootLogoUrl="TemplateData/boot_logo.png?v=d35708a439ef";</script>
+<script>window.__roBootLogoUrl="TemplateData/boot_logo.png?v=b01c144ba27a";</script>
 <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -86,7 +86,7 @@
       }
 
       var roGet = function (f) { try { var x = new XMLHttpRequest(); x.open("GET", f + "?t=" + Date.now(), false); x.send(); return x.status == 200 ? x.responseText.trim() : ""; } catch (e) { return ""; } };
-      var roCode = roGet("version.txt"); if (!/^[0-9a-zA-Z]{4,40}$/.test(roCode)) roCode = "a03614c8x707e1350";
+      var roCode = roGet("version.txt"); if (!/^[0-9a-zA-Z]{4,40}$/.test(roCode)) roCode = "7937abb1x8b69ea8b";
       var roCdn = roGet("cdn.txt").replace(/\/+$/, ""); if (!/^https?:\/\/[^\s\/"'<>]+(\/[^\s"'<>]*)?$/.test(roCdn)) roCdn = "";
       var buildUrl = "b_" + roCode;
       var loaderUrl = buildUrl + "/WebGL.loader.js";
