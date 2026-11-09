@@ -118,6 +118,13 @@
         };
       })();
       var roWaitHide = function () { var e = document.querySelector('[data-ro="sub"]'); if (e) e.parentNode.parentNode.style.display = "none"; };
+      // 고정 주소(cdn.wownarok.com, 이름 있는 터널)에서 지금 웹 파일 통로 주소 — 서버 PC 가 터널을 다시 켜면 몇 초 안에 바뀐다(2026-11-10, webhost.py /addr.json).
+      //   Pages cdn.txt 반영(1~2분)을 기다리는 동안 그 주소가 죽어 있으면 이걸로 바로 붙는다. 3초 안에 못 받으면 "".
+      var roAddr = function (cb) {
+        var fin = function (v) { if (cb) { var f = cb; cb = null; f(v); } };
+        setTimeout(function () { fin(""); }, 3000);
+        try { fetch("https://cdn.wownarok.com/addr.json?t=" + Date.now(), { cache: "no-store", mode: "cors" }).then(function (r) { return r.ok ? r.json() : {}; }).then(function (j) { var c = j && typeof j.cdn == "string" ? j.cdn.replace(/\/+$/, "") : ""; fin(/^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(c) ? c : ""); }, function () { fin(""); }); } catch (e) { fin(""); }
+      };
       var loaderUrl = buildUrl + "/WebGL.loader.js";
       var config = {
         arguments: [],
@@ -217,9 +224,10 @@
       (function () {
         var go = function () { roWaitHide(); document.body.appendChild(script); };
         var applied = false;
-        var tryStart = function () {
+        var tryStart = function (override) {
           // 다시 시도할 때마다 서버 PC 가 올린 최신 주소·판을 다시 읽는다(통로를 다시 켜면 주소가 바뀐다)
-          var c = roGet("cdn.txt").replace(/\/+$/, ""); if (/^https?:\/\/[^\s\/"'<>]+(\/[^\s"'<>]*)?$/.test(c)) roCdn = c;
+          if (override) roCdn = override;
+          else { var c = roGet("cdn.txt").replace(/\/+$/, ""); if (/^https?:\/\/[^\s\/"'<>]+(\/[^\s"'<>]*)?$/.test(c)) roCdn = c; }
           var v = roGet("version.txt"); if (/^[0-9a-zA-Z]{4,40}$/.test(v) && v != roCode) { location.reload(); return; }   // 그사이 새 판이 올라옴 — 새 입구로
           if (!roCdn) { go(); return; }
           var base = roCdn + "/v_" + roCode + "/", done = false;
@@ -240,7 +248,18 @@
               return;
             }
             if (ctl) ctl.abort();
-            // 웹 파일 서버를 못 찾음 — Pages 에 이 판(-PagesBuild)이 있으면 그쪽, 없으면 기다렸다 다시
+            // 웹 파일 서버를 못 찾음 — 먼저 고정 주소에 지금 주소를 묻고, 다르면 바로 그 주소로 다시
+            if (!override) {
+              roAddr(function (ac) {
+                if (ac && ac != roCdn) { console.warn("[RO] cdn.txt 주소(" + roCdn + ")가 죽어 있어 고정 주소가 알려 준 " + ac + " 로 다시 시도합니다."); tryStart(ac); }
+                else fallback();
+              });
+              return;
+            }
+            fallback();
+          };
+          var fallback = function () {
+            // Pages 에 이 판(-PagesBuild)이 있으면 그쪽, 없으면 기다렸다 다시
             var pages = buildUrl + "/WebGL.loader.js";
             var pagesOk = function (ok2) {
               if (ok2) { console.warn("[RO] 웹 파일 서버(" + base + ")를 확인하지 못해 Pages 판으로 받습니다."); go(); }
