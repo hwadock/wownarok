@@ -7,11 +7,33 @@
     <link rel="icon" type="image/png" href="TemplateData/favicon-32.png">
     <link rel="apple-touch-icon" href="TemplateData/app-icon-180.png">
     <link rel="manifest" href="TemplateData/manifest.webmanifest">
-    <meta name="apple-mobile-web-app-title" content="WOWNAROK">
+    <meta name="apple-mobile-web-app-title" content="와우나로크">
     <meta name="theme-color" content="#241A14">
     <link rel="stylesheet" href="TemplateData/style.css">
   <style>#ro-logo{display:block;width:min(23vw,126px)!important;height:auto;margin:0 auto 14px;image-rendering:pixelated;image-rendering:crisp-edges}#unity-progress-bar-empty{margin:10px auto 0}</style>
 <script>window.__roBootLogoUrl="TemplateData/boot_logo.png?v=d35708a439ef";</script>
+<meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>@media (display-mode: standalone),(display-mode: fullscreen){html,body{background:#241A14}#unity-container.unity-mobile{top:env(safe-area-inset-top,0px);bottom:env(safe-area-inset-bottom,0px);height:auto}}</style>
+<script>
+(function () {
+  window.__roInstallPrompt = null;
+  window.addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); window.__roInstallPrompt = e; });
+  window.addEventListener("appinstalled", function () { window.__roInstallPrompt = null; window.__roInstalled = true; });
+  if ("serviceWorker" in navigator) window.addEventListener("load", function () { try { navigator.serviceWorker.register("sw.js").catch(function () {}); } catch (e) {} });
+  var app = function () { try { return matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: fullscreen)").matches; } catch (e) { return false; } };
+  if (!/Android/i.test(navigator.userAgent) || app() || !document.fullscreenEnabled) return;
+  var onDown = function (e) {
+    var t = e.target;
+    if (t && t.closest && t.closest("input,textarea,select,label,[contenteditable]")) return;
+    document.removeEventListener("pointerdown", onDown, true);
+    if (document.fullscreenElement) return;
+    try { var r = document.documentElement.requestFullscreen({ navigationUI: "hide" }); if (r && r.catch) r.catch(function () {}); } catch (e2) {}
+  };
+  document.addEventListener("pointerdown", onDown, true);
+})();
+</script>
 <style>body{overflow:hidden;word-break:keep-all;overflow-wrap:anywhere}#unity-build-title{display:none}#unity-fullscreen-button{position:relative}#unity-fullscreen-button::before{content:"전체 화면";position:absolute;right:44px;top:9px;white-space:nowrap;font:bold 14px sans-serif;color:#EBDDBC;background:#2E2018;border:1px solid #C9963F;border-radius:4px;padding:2px 8px}</style>
 </head>
   <body>
@@ -64,7 +86,7 @@
       }
 
       var roGet = function (f) { try { var x = new XMLHttpRequest(); x.open("GET", f + "?t=" + Date.now(), false); x.send(); return x.status == 200 ? x.responseText.trim() : ""; } catch (e) { return ""; } };
-      var roCode = roGet("version.txt"); if (!/^[0-9a-zA-Z]{4,40}$/.test(roCode)) roCode = "3a34c321xbb8572f6";
+      var roCode = roGet("version.txt"); if (!/^[0-9a-zA-Z]{4,40}$/.test(roCode)) roCode = "a03614c8x707e1350";
       var roCdn = roGet("cdn.txt").replace(/\/+$/, ""); if (!/^https?:\/\/[^\s\/"'<>]+(\/[^\s"'<>]*)?$/.test(roCdn)) roCdn = "";
       var buildUrl = "b_" + roCode;
       var loaderUrl = buildUrl + "/WebGL.loader.js";
@@ -115,7 +137,7 @@
 
         var meta = document.createElement('meta');
         meta.name = 'viewport';
-        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes' + (navigator.standalone ? ', viewport-fit=cover' : '');
         document.getElementsByTagName('head')[0].appendChild(meta);
         document.querySelector("#unity-container").className = "unity-mobile";
         canvas.className = "unity-mobile";
