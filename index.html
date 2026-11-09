@@ -64,7 +64,7 @@
       }
 
       var roGet = function (f) { try { var x = new XMLHttpRequest(); x.open("GET", f + "?t=" + Date.now(), false); x.send(); return x.status == 200 ? x.responseText.trim() : ""; } catch (e) { return ""; } };
-      var roCode = roGet("version.txt"); if (!/^[0-9a-zA-Z]{4,40}$/.test(roCode)) roCode = "fc1549d0x9d2a6b1d";
+      var roCode = roGet("version.txt"); if (!/^[0-9a-zA-Z]{4,40}$/.test(roCode)) roCode = "85356b3ax02da7707";
       var roCdn = roGet("cdn.txt").replace(/\/+$/, ""); if (!/^https?:\/\/[^\s\/"'<>]+(\/[^\s"'<>]*)?$/.test(roCdn)) roCdn = "";
       var buildUrl = "b_" + roCode;
       var loaderUrl = buildUrl + "/WebGL.loader.js";
