@@ -27,7 +27,10 @@
     active.forEach(function (item) { if (item.resize) item.resize.disconnect(); if (item.player) item.player.cleanup(); item.canvas.remove(); });
     active = []; host = loadingHost = null;
   }
+  // 아이폰·아이패드는 Rive 런타임(wasm)을 띄우지 않는다 — 탭 메모리 한도가 낮아 게임과 함께 꺼졌다(2026-11-11). 로딩 원은 CSS 궤도(ro-fx-orbit)만 돈다
+  var ios = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   function mount(target, artboard, generation) {
+    if (ios) return;
     loadRuntime().then(function (api) {
       if (!api || reduce.matches || generation !== serial || !target.isConnected) return;
       api.RuntimeLoader.setWasmUrl(base + 'rive.wasm');
