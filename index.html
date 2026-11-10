@@ -86,7 +86,7 @@
       }
 
       var roGet = function (f) { try { var x = new XMLHttpRequest(); x.open("GET", f + "?t=" + Date.now(), false); x.send(); return x.status == 200 ? x.responseText.trim() : ""; } catch (e) { return ""; } };
-      var roCode = roGet("version.txt"); if (!/^[0-9a-zA-Z]{4,40}$/.test(roCode)) roCode = "b90ba4e2x52314f3a";
+      var roCode = roGet("version.txt"); if (!/^[0-9a-zA-Z]{4,40}$/.test(roCode)) roCode = "b19bdc39x333f7992";
       var roCdn = roGet("cdn.txt").replace(/\/+$/, ""); if (!/^https?:\/\/[^\s\/"'<>]+(\/[^\s"'<>]*)?$/.test(roCdn)) roCdn = "";
       var buildUrl = "b_" + roCode;
       // 웹 파일을 못 받을 때(통로 530·끊김) 알림창 대신 점검 화면처럼 '다시 잡는 중' 판을 띄우고 30초마다 다시 시도(2026-11-10 사용자 "문제가 있다면 점검 페이지라도")
