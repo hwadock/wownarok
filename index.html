@@ -86,7 +86,7 @@
       }
 
       var roGet = function (f) { try { var x = new XMLHttpRequest(); x.open("GET", f + "?t=" + Date.now(), false); x.send(); return x.status == 200 ? x.responseText.trim() : ""; } catch (e) { return ""; } };
-      var roCode = roGet("version.txt"); if (!/^[0-9a-zA-Z]{4,40}$/.test(roCode)) roCode = "b19bdc39x333f7992";
+      var roCode = "6232745exa83b4e9d";   // 처음엔 이 입구에 박힌 판 — 실제 판은 아래 tryStart 가 서버 PC 입구(대체 Pages)에서 읽어 바꾼다
       var roCdn = roGet("cdn.txt").replace(/\/+$/, ""); if (!/^https?:\/\/[^\s\/"'<>]+(\/[^\s"'<>]*)?$/.test(roCdn)) roCdn = "";
       var buildUrl = "b_" + roCode;
       // 웹 파일을 못 받을 때(통로 530·끊김) 알림창 대신 점검 화면처럼 '다시 잡는 중' 판을 띄우고 30초마다 다시 시도(2026-11-10 사용자 "문제가 있다면 점검 페이지라도")
@@ -124,6 +124,21 @@
         var fin = function (v) { if (cb) { var f = cb; cb = null; f(v); } };
         setTimeout(function () { fin(""); }, 3000);
         try { fetch("https://cdn.wownarok.com/addr.json?t=" + Date.now(), { cache: "no-store", mode: "cors" }).then(function (r) { return r.ok ? r.json() : {}; }).then(function (j) { var c = j && typeof j.cdn == "string" ? j.cdn.replace(/\/+$/, "") : ""; fin(/^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(c) ? c : ""); }, function () { fin(""); }); } catch (e) { fin(""); }
+      };
+      // 서버 PC 입구의 판 번호(<주소>/entry/version.txt, no-store) — 비동기, ms 안에 못 받으면 "". 404(서버 PC 에 파일 없음)면 null.
+      var roEntry = function (base, ms, cb) {
+        var ctl = window.AbortController ? new AbortController() : null;
+        var fin = function (v) { if (cb) { var f = cb; cb = null; if (ctl && v === "") ctl.abort(); f(v); } };
+        setTimeout(function () { fin(""); }, ms);
+        try { fetch(base + "/entry/version.txt?t=" + Date.now(), { cache: "no-store", mode: "cors", signal: ctl ? ctl.signal : undefined }).then(function (r) { if (r.status == 404) { fin(null); return; } if (!r.ok) { fin(""); return; } return r.text().then(function (t) { t = t.trim(); fin(/^[0-9a-zA-Z]{4,40}$/.test(t) ? t : ""); }); }).then(null, function () { fin(""); }); } catch (e) { fin(""); }
+      };
+      // 판 번호 고르기 = 빠른 터널 입구(3초) → 고정 주소 입구(4초) → Pages version.txt(동기, 마지막 대체). cb 에 받은 글(못 받으면 "")
+      var roFixed = "https://cdn.wownarok.com";
+      var roVer = function (cb) {
+        var pages = function () { cb(roGet("version.txt")); };
+        var fixed = function () { roEntry(roFixed, 4000, function (v) { if (v) cb(v); else pages(); }); };
+        if (!roCdn || roCdn == roFixed) { fixed(); return; }
+        roEntry(roCdn, 3000, function (v) { if (v) cb(v); else if (v === null) pages(); else fixed(); });
       };
       var loaderUrl = buildUrl + "/WebGL.loader.js";
       var config = {
@@ -210,7 +225,7 @@
           } else {
             loadingContainer.style.display = "none";
           }
-        }).then((unityInstance) => {
+        }).then((unityInstance) => { window.__roUnityReady = 1;
                 document.querySelector("#unity-fullscreen-button").onclick = () => {
                   unityInstance.SetFullscreen(1);
                 };
@@ -223,12 +238,28 @@
       script.onerror = function () { roWait("게임 파일(" + script.src + ")을 받지 못했습니다", function () { location.reload(); }); };
       (function () {
         var go = function () { roWaitHide(); document.body.appendChild(script); };
-        var applied = false;
+        var applied = false, first = true;
+        // 처음 읽은 판이 이 입구에 박힌 판과 다르면 그 판으로 바꾼다(Pages 입구 껍데기가 옛것으로 캐시돼 있어도 새 판을 받게) — Pages b_<판> 대체 경로도 같이
+        var roUseCode = function (c) {
+          var nb = "b_" + c;
+          ["dataUrl", "frameworkUrl", "codeUrl", "symbolsUrl"].forEach(function (k) { if (typeof config[k] == "string" && config[k].indexOf(buildUrl + "/") == 0) config[k] = nb + config[k].substring(buildUrl.length); });
+          if (loaderUrl.indexOf(buildUrl + "/") == 0) { loaderUrl = nb + loaderUrl.substring(buildUrl.length); script.src = loaderUrl; }
+          buildUrl = nb; roCode = c;
+        };
         var tryStart = function (override) {
-          // 다시 시도할 때마다 서버 PC 가 올린 최신 주소·판을 다시 읽는다(통로를 다시 켜면 주소가 바뀐다)
+          // 다시 시도할 때마다 서버 PC 가 올린 최신 주소·판을 다시 읽는다(통로를 다시 켜면 주소가 바뀐다). 첫 시도의 cdn.txt 는 위에서 막 읽었다
+          var wasFirst = first; first = false;
           if (override) roCdn = override;
-          else { var c = roGet("cdn.txt").replace(/\/+$/, ""); if (/^https?:\/\/[^\s\/"'<>]+(\/[^\s"'<>]*)?$/.test(c)) roCdn = c; }
-          var v = roGet("version.txt"); if (/^[0-9a-zA-Z]{4,40}$/.test(v) && v != roCode) { location.reload(); return; }   // 그사이 새 판이 올라옴 — 새 입구로
+          else if (!wasFirst) { var c = roGet("cdn.txt").replace(/\/+$/, ""); if (/^https?:\/\/[^\s\/"'<>]+(\/[^\s"'<>]*)?$/.test(c)) roCdn = c; }
+          roVer(function (v) {
+            if (/^[0-9a-zA-Z]{4,40}$/.test(v) && v != roCode) {
+              if (wasFirst && !applied) roUseCode(v);
+              else { location.reload(); return; }   // 그사이 새 판이 올라옴 — 새 입구로
+            }
+            tryHost(override);
+          });
+        };
+        var tryHost = function (override) {
           if (!roCdn) { go(); return; }
           var base = roCdn + "/v_" + roCode + "/", done = false;
           var ctl = window.AbortController ? new AbortController() : null;
@@ -275,5 +306,7 @@
       })();
 
     </script>
-  </body>
+  <div id="ro-ver" aria-hidden="true" style="position:fixed;left:calc(8px + env(safe-area-inset-left));bottom:calc(6px + env(safe-area-inset-bottom));z-index:2147483000;pointer-events:none;font:700 12px/1.2 'Noto Sans KR','Malgun Gothic',sans-serif;color:rgba(255,255,255,.6);text-shadow:0 1px 2px #000a;letter-spacing:.02em">v.0.071 <span style="opacity:.55;font-weight:400">6232745e</span></div>
+<script>(function(){var v=document.getElementById('ro-ver');if(!v)return;setInterval(function(){var o=document.getElementById('ro-entry-overlay');v.style.display=(!window.__roUnityReady||(o&&o.isConnected))?'block':'none';},400);})();</script>
+</body>
 </html>
