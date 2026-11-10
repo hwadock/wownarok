@@ -11,7 +11,7 @@
     <meta name="theme-color" content="#241A14">
     <link rel="stylesheet" href="TemplateData/style.css">
   <style>#ro-logo{display:block;width:min(23vw,126px)!important;height:auto;margin:0 auto 14px;image-rendering:pixelated;image-rendering:crisp-edges}#unity-progress-bar-empty{margin:10px auto 0}</style>
-<script>window.__roBootLogoUrl="TemplateData/boot_logo.png?v=b01c144ba27a";</script>
+<script>window.__roBootLogoUrl="TemplateData/boot_logo.png?v=59c8cdca89ef";</script>
 <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -34,6 +34,16 @@
   document.addEventListener("pointerdown", onDown, true);
 })();
 </script>
+<meta property="og:type" content="website">
+    <meta property="og:url" content="https://wownarok.com/">
+    <meta property="og:title" content="WOWnarok">
+    <meta property="og:description" content="From Prontera To Orgrimmar — 인간 VS 오크, 웹에서 바로 하는 MMORPG">
+    <meta property="og:image" content="https://wownarok.com/TemplateData/ro-onboarding/og_image.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://wownarok.com/TemplateData/ro-onboarding/og_image.jpg">
+    <meta name="description" content="From Prontera To Orgrimmar — 인간 VS 오크, 웹에서 바로 하는 MMORPG">
 <style>body{overflow:hidden;word-break:keep-all;overflow-wrap:anywhere}#unity-build-title{display:none}#unity-fullscreen-button{position:relative}#unity-fullscreen-button::before{content:"전체 화면";position:absolute;right:44px;top:9px;white-space:nowrap;font:bold 14px sans-serif;color:#EBDDBC;background:#2E2018;border:1px solid #C9963F;border-radius:4px;padding:2px 8px}</style>
 </head>
   <body>
@@ -86,7 +96,7 @@
       }
 
       var roGet = function (f) { try { var x = new XMLHttpRequest(); x.open("GET", f + "?t=" + Date.now(), false); x.send(); return x.status == 200 ? x.responseText.trim() : ""; } catch (e) { return ""; } };
-      var roCode = "37521253x560cf1bc";   // 처음엔 이 입구에 박힌 판 — 실제 판은 아래 tryStart 가 서버 PC 입구(대체 Pages)에서 읽어 바꾼다
+      var roCode = "d50bb46cx71355f0d";   // 처음엔 이 입구에 박힌 판 — 실제 판은 아래 tryStart 가 서버 PC 입구(대체 Pages)에서 읽어 바꾼다
       var roCdn = roGet("cdn.txt").replace(/\/+$/, ""); if (!/^https?:\/\/[^\s\/"'<>]+(\/[^\s"'<>]*)?$/.test(roCdn)) roCdn = "";
       var buildUrl = "b_" + roCode;
       // 웹 파일을 못 받을 때(통로 530·끊김) 알림창 대신 점검 화면처럼 '다시 잡는 중' 판을 띄우고 30초마다 다시 시도(2026-11-10 사용자 "문제가 있다면 점검 페이지라도")
@@ -306,7 +316,7 @@
       })();
 
     </script>
-  <div id="ro-ver" aria-hidden="true" style="position:fixed;left:calc(8px + env(safe-area-inset-left));bottom:calc(6px + env(safe-area-inset-bottom));z-index:2147483000;pointer-events:none;font:700 12px/1.2 'Noto Sans KR','Malgun Gothic',sans-serif;color:rgba(255,255,255,.6);text-shadow:0 1px 2px #000a;letter-spacing:.02em">v.0.072 <span style="opacity:.55;font-weight:400">37521253</span></div>
-<script>(function(){var v=document.getElementById('ro-ver');if(!v)return;setInterval(function(){var o=document.getElementById('ro-entry-overlay');v.style.display=(!window.__roUnityReady||(o&&o.isConnected))?'block':'none';},400);})();</script>
+  <div id="ro-ver" aria-hidden="true" style="position:fixed;left:calc(8px + env(safe-area-inset-left));bottom:calc(6px + env(safe-area-inset-bottom));z-index:2147483000;pointer-events:none;font:700 12px/1.2 'Noto Sans KR','Malgun Gothic',sans-serif;color:rgba(255,255,255,.6);text-shadow:0 1px 2px #000a;letter-spacing:.02em;background:rgba(20,14,10,.55);padding:2px 7px;border-radius:7px">v.0.073 <span style="opacity:.55;font-weight:400">d50bb46c</span></div>
+<script>(function(){var v=document.getElementById('ro-ver');if(!v)return;var seen=0;setInterval(function(){var o=document.getElementById('ro-entry-overlay'),on=!!(o&&o.isConnected);if(on)seen=1;v.style.display=(!window.__roUnityReady||on||!seen)?'block':'none';},400);})();</script>
 </body>
 </html>
