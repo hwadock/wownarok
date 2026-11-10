@@ -96,7 +96,7 @@
       }
 
       var roGet = function (f) { try { var x = new XMLHttpRequest(); x.open("GET", f + "?t=" + Date.now(), false); x.send(); return x.status == 200 ? x.responseText.trim() : ""; } catch (e) { return ""; } };
-      var roCode = "108793fcx0eedf7bc";   // 처음엔 이 입구에 박힌 판 — 실제 판은 아래 tryStart 가 서버 PC 입구(대체 Pages)에서 읽어 바꾼다
+      var roCode = "7a1c0525x50c81a5e";   // 처음엔 이 입구에 박힌 판 — 실제 판은 아래 tryStart 가 서버 PC 입구(대체 Pages)에서 읽어 바꾼다
       var roCdn = roGet("cdn.txt").replace(/\/+$/, ""); if (!/^https?:\/\/[^\s\/"'<>]+(\/[^\s"'<>]*)?$/.test(roCdn)) roCdn = "";
       var buildUrl = "b_" + roCode;
       // 웹 파일을 못 받을 때(통로 530·끊김) 알림창 대신 점검 화면처럼 '다시 잡는 중' 판을 띄우고 30초마다 다시 시도(2026-11-10 사용자 "문제가 있다면 점검 페이지라도")
@@ -205,7 +205,7 @@
 
         // To lower canvas resolution on mobile devices to gain some
         // performance, uncomment the following line:
-        config.devicePixelRatio = Math.min(window.devicePixelRatio || 1, (/iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) ? 1.5 : 2);
+        config.devicePixelRatio = Math.min(window.devicePixelRatio || 1, 2);
 
 
       } else {
@@ -317,7 +317,7 @@
 
     </script>
   <script id="ro-wakelock">(function(){if(!('wakeLock' in navigator))return;var lock=null,busy=false;function req(){if(lock||busy||document.visibilityState!=='visible')return;busy=true;navigator.wakeLock.request('screen').then(function(l){lock=l;busy=false;l.addEventListener('release',function(){lock=null;});}).catch(function(){busy=false;});}document.addEventListener('visibilitychange',req);['pointerdown','touchend','keydown'].forEach(function(e){document.addEventListener(e,req,true);});req();})();</script>
-<div id="ro-ver" aria-hidden="true" style="position:fixed;left:calc(8px + env(safe-area-inset-left));bottom:calc(6px + env(safe-area-inset-bottom));z-index:2147483000;pointer-events:none;font:700 12px/1.2 'Noto Sans KR','Malgun Gothic',sans-serif;color:rgba(255,255,255,.6);text-shadow:0 1px 2px #000a;letter-spacing:.02em;background:rgba(20,14,10,.55);padding:2px 7px;border-radius:7px">v.0.077 <span style="opacity:.55;font-weight:400">108793fc</span></div>
+<div id="ro-ver" aria-hidden="true" style="position:fixed;left:calc(8px + env(safe-area-inset-left));bottom:calc(6px + env(safe-area-inset-bottom));z-index:2147483000;pointer-events:none;font:700 12px/1.2 'Noto Sans KR','Malgun Gothic',sans-serif;color:rgba(255,255,255,.6);text-shadow:0 1px 2px #000a;letter-spacing:.02em;background:rgba(20,14,10,.55);padding:2px 7px;border-radius:7px">v.0.078 <span style="opacity:.55;font-weight:400">7a1c0525</span></div>
 <script>(function(){var v=document.getElementById('ro-ver');if(!v)return;var seen=0;setInterval(function(){var o=document.getElementById('ro-entry-overlay'),on=!!(o&&o.isConnected);if(on)seen=1;v.style.display=(!window.__roUnityReady||on||!seen)?'block':'none';},400);})();</script>
 </body>
 </html>
