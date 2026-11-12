@@ -97,21 +97,23 @@
       }
 
       var roGet = function (f) { try { var x = new XMLHttpRequest(); x.open("GET", f + "?t=" + Date.now(), false); x.send(); return x.status == 200 ? x.responseText.trim() : ""; } catch (e) { return ""; } };
-      var roCode = "92c819b9x5d02fcb0";   // 처음엔 이 입구에 박힌 판 — 실제 판은 아래 tryStart 가 서버 PC 입구(대체 Pages)에서 읽어 바꾼다
+      var roCode = "4b79f1c3x9de4f9ac";   // 처음엔 이 입구에 박힌 판 — 실제 판은 아래 tryStart 가 서버 PC 입구(대체 Pages)에서 읽어 바꾼다
       var roCdn = roGet("cdn.txt").replace(/\/+$/, ""); if (!/^https?:\/\/[^\s\/"'<>]+(\/[^\s"'<>]*)?$/.test(roCdn)) roCdn = "";
       var buildUrl = "b_" + roCode;
-      // 휴대폰판 고르기(2026-11-12 사용자 결정 '그래픽 능력 검사') — DXT(s3tc)를 못 쓰고 ASTC 를 쓰는 기기(아이폰·대부분 안드로이드)는 v_<판>_m(ASTC·그림 절반).
-      //   ?tex=dxt / ?tex=astc 로 강제. 검사용 캔버스 문맥은 바로 버린다(lose_context). _m 판이 없으면(404) 아래 tryHost 가 일반판으로 내려간다.
+      // 휴대폰판 고르기(2026-11-12 사용자 결정 '그래픽 능력 검사') — DXT(s3tc)를 못 쓰고 ASTC 를 쓰는 기기는 ASTC 판:
+      //   안드로이드 = v_<판>_a(ASTC·원래 크기, 2026-11-12 사용자 결정), 그 밖(아이폰 등) = v_<판>_m(ASTC·그림 절반).
+      //   ?tex=dxt / ?tex=astc(아이폰판) / ?tex=astca(안드로이드판) 로 강제. 검사용 캔버스 문맥은 바로 버린다(lose_context).
+      //   판이 없으면(404) 아래 tryHost 가 _a → _m → 일반판 순으로 내려간다.
       var roVariant = (function () {
-        var q = /[?&]tex=(dxt|astc)(&|$)/.exec(location.search);
-        if (q) return q[1] == "astc" ? "_m" : "";
+        var q = /[?&]tex=(dxt|astca|astc)(&|$)/.exec(location.search);
+        if (q) return q[1] == "astca" ? "_a" : q[1] == "astc" ? "_m" : "";
         try {
           var c = document.createElement("canvas"), g = c.getContext("webgl2") || c.getContext("webgl");
           if (!g) return "";
           var s3 = g.getExtension("WEBGL_compressed_texture_s3tc") || g.getExtension("WEBKIT_WEBGL_compressed_texture_s3tc");
           var astc = g.getExtension("WEBGL_compressed_texture_astc");
           var lose = g.getExtension("WEBGL_lose_context"); if (lose) lose.loseContext();
-          return !s3 && astc ? "_m" : "";
+          return !s3 && astc ? (/Android/i.test(navigator.userAgent) ? "_a" : "_m") : "";
         } catch (e) { return ""; }
       })();
       window.roVariant = roVariant;
@@ -292,9 +294,9 @@
           var finish = function (ok, status) {
             if (done) return;
             done = true;
-            if (!ok && status == 404 && roVariant) {   // 이 판엔 휴대폰판이 없다(옛 판·굽기 실패) — 일반판으로
-              console.warn("[RO] 휴대폰판(" + base + ")이 없어 일반판으로 받습니다.");
-              roVariant = ""; window.roVariant = "";
+            if (!ok && status == 404 && roVariant) {   // 이 판엔 그 판이 없다(옛 판·굽기 실패) — 안드로이드판이면 휴대폰판(_m), 그다음 일반판으로
+              console.warn("[RO] " + (roVariant == "_a" ? "안드로이드판" : "휴대폰판") + "(" + base + ")이 없어 " + (roVariant == "_a" ? "휴대폰판" : "일반판") + "으로 받습니다.");
+              roVariant = roVariant == "_a" ? "_m" : ""; window.roVariant = roVariant;
               tryHost(override);
               return;
             }
@@ -340,7 +342,47 @@
     </script>
   <script id="ro-vercheck">(function(){var busy=false,last=0;function chk(){if(busy||document.visibilityState!=='visible'||!window.__roUnityReady||typeof window.roVer!=='function'||!window.roCode)return;var now=Date.now();if(now-last<10000)return;last=now;busy=true;window.roVer(function(v){busy=false;v=(v||'').trim();if(!/^[0-9a-zA-Z]{4,40}$/.test(v)||v==window.roCode)return;try{if(Date.now()-Number(sessionStorage.getItem('ro_ver_reload')||0)<20000)return;sessionStorage.setItem('ro_ver_reload',String(Date.now()));}catch(e){}var u=location.href.replace(/([?&])r=\d+&?/,'$1').replace(/[?&]$/,'');location.replace(u+(u.indexOf('?')>=0?'&':'?')+'r='+Date.now());});}window.addEventListener('pageshow',function(e){if(e.persisted){last=0;chk();}});document.addEventListener('visibilitychange',chk);})();</script>
 <script id="ro-wakelock">(function(){if(!('wakeLock' in navigator))return;var lock=null,busy=false;function req(){if(lock||busy||document.visibilityState!=='visible')return;busy=true;navigator.wakeLock.request('screen').then(function(l){lock=l;busy=false;l.addEventListener('release',function(){lock=null;});}).catch(function(){busy=false;});}document.addEventListener('visibilitychange',req);['pointerdown','touchend','keydown'].forEach(function(e){document.addEventListener(e,req,true);});req();})();</script>
-<div id="ro-ver" aria-hidden="true" style="position:fixed;left:calc(8px + env(safe-area-inset-left));bottom:calc(6px + env(safe-area-inset-bottom));z-index:2147483000;pointer-events:none;font:700 12px/1.2 'Noto Sans KR','Malgun Gothic',sans-serif;color:rgba(255,255,255,.6);text-shadow:0 1px 2px #000a;letter-spacing:.02em;background:rgba(20,14,10,.55);padding:2px 7px;border-radius:7px">v0.1.98 <span style="opacity:.55;font-weight:400">92c819b9</span></div>
-<script>(function(){var v=document.getElementById('ro-ver');if(!v)return;setInterval(function(){if(window.roVariant==='_m'&&!v.__m){v.__m=1;v.appendChild(document.createTextNode(' · 휴대폰판'));}var o=document.getElementById('ro-entry-overlay'),on=!!(o&&o.isConnected);if(on)window.__roInWorld=0;v.style.display=(on||!window.__roInWorld)?'block':'none';},400);})();</script>
+<script id="ro-portrait">(function(){
+var T=window.__roPhoneTest;
+function phone(){if(T)return true;var s=Math.min(screen.width||0,screen.height||0);var touch=(navigator.maxTouchPoints||0)>0||('ontouchstart' in window);return touch&&s>0&&s<600;}
+function landscape(){if(T)return T.land();var o=screen.orientation&&screen.orientation.type;if(o)return o.indexOf('landscape')===0;if(typeof window.orientation==='number')return Math.abs(window.orientation)===90;return window.innerWidth>window.innerHeight;}
+function lock(){try{if(screen.orientation&&screen.orientation.lock)screen.orientation.lock('portrait').catch(function(){});}catch(e){}}
+var css='#ro-rotate{position:fixed;inset:0;z-index:2147483600;display:none;flex-direction:column;align-items:center;justify-content:center;gap:22px;'+
+'background:radial-gradient(ellipse at 50% 40%,#71462c,#352014 70%,#1a0f09);color:#fff1cd;font-family:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;text-align:center;word-break:keep-all;'+
+'padding:max(16px,env(safe-area-inset-top)) max(24px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(24px,env(safe-area-inset-left));box-sizing:border-box}'+
+'#ro-rotate.on{display:flex}'+
+'#ro-rotate .ro-ph{width:62px;height:104px;border:5px solid #f2c77a;border-radius:14px;box-sizing:border-box;position:relative;box-shadow:0 0 0 3px #3b1c0b,0 8px 18px #0008;animation:roRot 2.4s ease-in-out infinite}'+
+'#ro-rotate .ro-ph:before{content:"";position:absolute;left:50%;top:7px;width:16px;height:4px;margin-left:-8px;border-radius:2px;background:#f2c77a}'+
+'#ro-rotate .ro-ph:after{content:"";position:absolute;left:50%;bottom:6px;width:10px;height:10px;margin-left:-5px;border-radius:50%;border:2px solid #f2c77a;box-sizing:border-box}'+
+'#ro-rotate .ro-arrow{position:absolute;width:150px;height:150px;border:4px solid transparent;border-top-color:#ffd966;border-left-color:#ffd966;border-radius:50%;opacity:.85;animation:roArc 2.4s ease-in-out infinite}'+
+'#ro-rotate .ro-wrap{position:relative;width:150px;height:150px;display:flex;align-items:center;justify-content:center}'+
+'#ro-rotate h2{margin:0;font-size:24px;font-weight:900;color:#ffd966;text-shadow:0 3px #3b1c0b;letter-spacing:-.02em}'+
+'#ro-rotate p{margin:0;font-size:15px;font-weight:700;color:#f3d5a0}'+
+'@keyframes roRot{0%,20%{transform:rotate(-90deg)}55%,100%{transform:rotate(0)}}'+
+'@keyframes roArc{0%,20%{transform:rotate(-40deg);opacity:0}40%{opacity:.85}55%,100%{transform:rotate(30deg);opacity:0}}';
+var st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
+var el=document.createElement('div');el.id='ro-rotate';el.setAttribute('role','alert');
+el.innerHTML='<div class="ro-wrap"><div class="ro-arrow"></div><div class="ro-ph"></div></div><h2>세로로 돌려 주세요</h2><p>와우나로크는 세로 화면에서 즐길 수 있어요</p>';
+var pw=0,ph=0,held=false;
+function cont(){return document.getElementById('unity-container');}
+function apply(){
+ if(!document.body)return;if(!el.isConnected)document.body.appendChild(el);
+ var c=cont(),on=phone()&&landscape();
+ el.className=on?'on':'';
+ if(!on){if(c&&held){c.style.width='';c.style.height='';c.style.left='';c.style.top='';c.style.bottom='';c.style.right='';held=false;}
+  if(c&&window.innerWidth<window.innerHeight){pw=c.clientWidth;ph=c.clientHeight;}return;}
+ if(c&&pw>0&&ph>0){c.style.width=pw+'px';c.style.height=ph+'px';c.style.left='0';c.style.top='0';c.style.right='auto';c.style.bottom='auto';held=true;}
+}
+lock();
+['resize','orientationchange'].forEach(function(e){window.addEventListener(e,function(){apply();setTimeout(apply,300);});});
+if(screen.orientation&&screen.orientation.addEventListener)screen.orientation.addEventListener('change',function(){apply();setTimeout(apply,300);});
+['pointerdown','touchend'].forEach(function(e){document.addEventListener(e,lock,{once:true,capture:true});});
+document.addEventListener('fullscreenchange',lock);
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply);else apply();
+setTimeout(apply,500);
+})();
+</script>
+<div id="ro-ver" aria-hidden="true" style="position:fixed;left:calc(8px + env(safe-area-inset-left));bottom:calc(6px + env(safe-area-inset-bottom));z-index:2147483000;pointer-events:none;font:700 12px/1.2 'Noto Sans KR','Malgun Gothic',sans-serif;color:rgba(255,255,255,.6);text-shadow:0 1px 2px #000a;letter-spacing:.02em;background:rgba(20,14,10,.55);padding:2px 7px;border-radius:7px">v0.1.99 <span style="opacity:.55;font-weight:400">4b79f1c3</span></div>
+<script>(function(){var v=document.getElementById('ro-ver');if(!v)return;setInterval(function(){if((window.roVariant==='_m'||window.roVariant==='_a')&&!v.__m){v.__m=1;v.appendChild(document.createTextNode(window.roVariant==='_a'?' · 안드로이드판':' · 휴대폰판'));}var o=document.getElementById('ro-entry-overlay'),on=!!(o&&o.isConnected);if(on)window.__roInWorld=0;v.style.display=(on||!window.__roInWorld)?'block':'none';},400);})();</script>
 </body>
 </html>
