@@ -97,7 +97,7 @@
       }
 
       var roGet = function (f) { try { var x = new XMLHttpRequest(); x.open("GET", f + "?t=" + Date.now(), false); x.send(); return x.status == 200 ? x.responseText.trim() : ""; } catch (e) { return ""; } };
-      var roCode = "b1db5bb4x73af1628";   // 처음엔 이 입구에 박힌 판 — 실제 판은 아래 tryStart 가 서버 PC 입구(대체 Pages)에서 읽어 바꾼다
+      var roCode = "ffe6993exf83156fa";   // 처음엔 이 입구에 박힌 판 — 실제 판은 아래 tryStart 가 서버 PC 입구(대체 Pages)에서 읽어 바꾼다
       var roCdn = roGet("cdn.txt").replace(/\/+$/, ""); if (!/^https?:\/\/[^\s\/"'<>]+(\/[^\s"'<>]*)?$/.test(roCdn)) roCdn = "";
       var buildUrl = "b_" + roCode;
       // 휴대폰판 고르기(2026-11-12 사용자 결정 '그래픽 능력 검사') — DXT(s3tc)를 못 쓰고 ASTC 를 쓰는 기기는 ASTC 판:
@@ -368,7 +368,7 @@ var pw=0,ph=0,held=false;
 //   그리기 버퍼·카메라 렌더 텍스처를 그 크기로 다시 만든다. 회전 순간(가로 크기로 한 번, 세로로 또 한 번)·주소 표시줄이 들고 날 때마다 새로 잡혀
 //   총량 여유(30~40MB)를 넘겼다. 휴대폰에선 그 맞춤을 끄고 여기서 정한다: 가로일 땐 안 바꾸고(마지막 세로 크기), 세로 안에서도 높이 변화가 15% 미만이면
 //   그대로 두고 CSS 로 늘인다(주소 표시줄 정도 — 그림이 아주 조금 늘어나 보일 뿐, 터치 좌표는 유니티가 화면 크기 비율로 맞춘다).
-var cw=0,ch=0;
+var cw=0,ch=0,sh=0,sAt=0;
 if(phone()&&window.config)window.config.matchWebGLToCanvasSize=false;
 function sizeCanvas(){
  if(!phone()||landscape())return;
@@ -376,8 +376,16 @@ function sizeCanvas(){
  var r=cv.getBoundingClientRect();if(r.width<10||r.height<10)return;
  var d=(window.config&&window.config.devicePixelRatio)||Math.min(window.devicePixelRatio||1,2);
  var w=Math.round(r.width*d),h=Math.round(r.height*d);
- if(cw&&Math.abs(w-cw)<=2&&Math.abs(h-ch)<ch*0.15)return;
- if(w===cw&&h===ch)return;
+ if(w===cw&&h===ch){sh=0;return;}
+ // 높이만 조금(15% 미만) 다르면 바로 다시 잡지 않는다(주소 표시줄이 들고 나는 순간마다 새로 잡혀 터졌다). 다만 그 크기가 2.5초 넘게 그대로면
+ //   맞춘다 — 안 맞추면 그림이 세로로 눌린 채 남는다(2026-11-13 사용자 "세로가 좀 찌부되어 보인다").
+ if(cw&&Math.abs(w-cw)<=2&&Math.abs(h-ch)<ch*0.15){
+  if(Math.abs(h-ch)<=2)return;
+  var now=Date.now();
+  if(h!==sh){sh=h;sAt=now;return;}
+  if(now-sAt<2500)return;
+ }
+ sh=0;
  cw=w;ch=h;cv.width=w;cv.height=h;
  window.__roCanvasSize=w+'x'+h;
 }
@@ -400,7 +408,7 @@ setTimeout(apply,500);
 setInterval(sizeCanvas,1000);
 })();
 </script>
-<div id="ro-ver" aria-hidden="true" style="position:fixed;left:calc(8px + env(safe-area-inset-left));bottom:calc(6px + env(safe-area-inset-bottom));z-index:2147483000;pointer-events:none;font:700 12px/1.2 'Noto Sans KR','Malgun Gothic',sans-serif;color:rgba(255,255,255,.6);text-shadow:0 1px 2px #000a;letter-spacing:.02em;background:rgba(20,14,10,.55);padding:2px 7px;border-radius:7px">v0.1.117 <span style="opacity:.55;font-weight:400">b1db5bb4</span></div>
+<div id="ro-ver" aria-hidden="true" style="position:fixed;left:calc(8px + env(safe-area-inset-left));bottom:calc(6px + env(safe-area-inset-bottom));z-index:2147483000;pointer-events:none;font:700 12px/1.2 'Noto Sans KR','Malgun Gothic',sans-serif;color:rgba(255,255,255,.6);text-shadow:0 1px 2px #000a;letter-spacing:.02em;background:rgba(20,14,10,.55);padding:2px 7px;border-radius:7px">v0.1.118 <span style="opacity:.55;font-weight:400">ffe6993e</span></div>
 <script>(function(){var v=document.getElementById('ro-ver');if(!v)return;setInterval(function(){if((window.roVariant==='_m'||window.roVariant==='_a')&&!v.__m){v.__m=1;v.appendChild(document.createTextNode(window.roVariant==='_a'?' · 안드로이드판':' · i'));}var o=document.getElementById('ro-entry-overlay'),on=!!(o&&o.isConnected);if(on)window.__roInWorld=0;v.style.display=(on||!window.__roInWorld)?'block':'none';},400);})();</script>
 </body>
 </html>
