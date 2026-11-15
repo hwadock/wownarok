@@ -47,6 +47,7 @@
     <meta name="description" content="From Prontera To Orgrimmar — 인간 VS 오크, 웹에서 바로 하는 MMORPG">
 <link rel="preload" as="image" href="TemplateData/boot_logo.png?v=67eb97a486a4">
 <style>body{overflow:hidden;word-break:keep-all;overflow-wrap:anywhere}#unity-build-title{display:none}#unity-fullscreen-button{position:relative}#unity-loading-container{background:#000;backdrop-filter:none}#unity-fullscreen-button::before{content:"전체 화면";position:absolute;right:44px;top:9px;white-space:nowrap;font:bold 14px sans-serif;color:#EBDDBC;background:#2E2018;border:1px solid #C9963F;border-radius:4px;padding:2px 8px}</style>
+<script id="ro-cachefix">(function(){var K='ro_cachefix';window.roCacheFix=function(m){m=String(m||'');if(!/subarray|Unknown data format|Invalid binary data|Failed to parse binary data|Unable to parse|CompileError|magic word/i.test(m))return false;try{if(Date.now()-(+sessionStorage.getItem(K)||0)<600000)return false;sessionStorage.setItem(K,String(Date.now()));}catch(e){return false;}console.warn('[RO] 게임 파일을 읽지 못해 저장된 게임 파일(UnityCache Build/)을 지우고 한 번 다시 엽니다: '+m);var done=false,go=function(){if(done)return;done=true;location.reload();};setTimeout(go,4000);try{caches.keys().then(function(ks){return Promise.all(ks.filter(function(k){return /^UnityCache/.test(k);}).map(function(k){return caches.open(k).then(function(c){return c.keys().then(function(rs){return Promise.all(rs.filter(function(r){return /\/Build\//.test(r.url);}).map(function(r){return c.delete(r);}));});});}));}).then(go,go);}catch(e){go();}return true;};})();</script>
 </head>
   <body>
     <div id="unity-container" class="unity-desktop">
@@ -78,7 +79,7 @@
       // Modify or remove this function to customize the visually presented
       // way that non-critical warnings and error messages are presented to the
       // user.
-      function unityShowBanner(msg, type) {
+      function unityShowBanner(msg, type) { if (type == 'error' && window.roCacheFix && window.roCacheFix(msg)) return;
         var warningBanner = document.querySelector("#unity-warning");
         function updateBannerVisibility() {
           warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
@@ -98,7 +99,7 @@
       }
 
       var roGet = function (f) { try { var x = new XMLHttpRequest(); x.open("GET", f + "?t=" + Date.now(), false); x.send(); return x.status == 200 ? x.responseText.trim() : ""; } catch (e) { return ""; } };
-      var roCode = "6d9259bbxf8a9851d";   // 처음엔 이 입구에 박힌 판 — 실제 판은 아래 tryStart 가 서버 PC 입구(대체 Pages)에서 읽어 바꾼다
+      var roCode = "599965fax091085cc";   // 처음엔 이 입구에 박힌 판 — 실제 판은 아래 tryStart 가 서버 PC 입구(대체 Pages)에서 읽어 바꾼다
       var roCdn = roGet("cdn.txt").replace(/\/+$/, ""); if (!/^https?:\/\/[^\s\/"'<>]+(\/[^\s"'<>]*)?$/.test(roCdn)) roCdn = "";
       var buildUrl = "b_" + roCode;
       // 휴대폰판 고르기(2026-11-12 사용자 결정 '그래픽 능력 검사') — DXT(s3tc)를 못 쓰고 ASTC 를 쓰는 기기는 ASTC 판:
@@ -236,7 +237,7 @@
           fullscreenContainer.style.width = Math.floor(W * s) + "px";
           fullscreenContainer.style.height = Math.floor(960 * s) + "px";
         };
-        window.roSetAspect = function (fold) { window.__roAR = fold ? 1248 / 1972 : 540 / 960; roFitDesktop(); };   // 2026-11-15 사용자 — 기본 9:16, 누르면 갤럭시 폴드8 접었을 때(10:16, 1248×1972)
+        window.roSetAspect = function (fold) { window.__roAR = fold ? 10 / 14 : 540 / 960; roFitDesktop(); };   // 2026-11-15 사용자 — 기본 9:16, 누르면 폴드 비율 10:14(처음 10:16 = 1248×1972 → '가로가 더 넓어야' 10:14)
         roFitDesktop();
         window.addEventListener("resize", roFitDesktop);
         document.addEventListener("fullscreenchange", roFitDesktop);
@@ -256,12 +257,12 @@
           } else {
             if (!loadingContainer.__roWait) { loadingContainer.__roWait = 1; var roT0 = Date.now(), roGI = Storage.prototype.getItem, roHook = function (k) { var v = roGI.apply(this, arguments); if (k === "ro_login_keep" && v) roDone(); return v; }, roDone = function () { loadingContainer.style.display = "none"; clearInterval(roIv); try { if (Storage.prototype.getItem === roHook) Storage.prototype.getItem = roGI; } catch (e) {} }, roIv = setInterval(function () { if (document.getElementById("ro-entry-overlay") || document.getElementById("ro-prologue") || window.__roInWorld || Date.now() - roT0 > 30000) roDone(); }, 100); try { Storage.prototype.getItem = roHook; } catch (e) {} }
           }
-        }).then((unityInstance) => { window.__roUnityReady = 1;
+        }).then((unityInstance) => { try { sessionStorage.removeItem('ro_cachefix'); } catch (e) {} window.__roUnityReady = 1;
                 document.querySelector("#unity-fullscreen-button").onclick = () => {
                   unityInstance.SetFullscreen(1);
                 };
 
-              }).catch((message) => {
+              }).catch((message) => { if (window.roCacheFix && window.roCacheFix(message)) return;
                 roWait("게임을 시작하지 못했습니다: " + message, function () { location.reload(); });
               });
             };
@@ -411,7 +412,7 @@ setTimeout(apply,500);
 setInterval(sizeCanvas,1000);
 })();
 </script>
-<div id="ro-ver" aria-hidden="true" style="position:fixed;left:calc(8px + env(safe-area-inset-left));bottom:calc(6px + env(safe-area-inset-bottom));z-index:2147483000;pointer-events:none;font:700 12px/1.2 'Noto Sans KR','Malgun Gothic',sans-serif;color:rgba(255,255,255,.6);text-shadow:0 1px 2px #000a;letter-spacing:.02em;background:rgba(20,14,10,.55);padding:2px 7px;border-radius:7px">v0.1.135 <span style="opacity:.55;font-weight:400">6d9259bb</span></div>
+<div id="ro-ver" aria-hidden="true" style="position:fixed;left:calc(8px + env(safe-area-inset-left));bottom:calc(6px + env(safe-area-inset-bottom));z-index:2147483000;pointer-events:none;font:700 12px/1.2 'Noto Sans KR','Malgun Gothic',sans-serif;color:rgba(255,255,255,.6);text-shadow:0 1px 2px #000a;letter-spacing:.02em;background:rgba(20,14,10,.55);padding:2px 7px;border-radius:7px">v0.1.136 <span style="opacity:.55;font-weight:400">599965fa</span></div>
 <script>(function(){var v=document.getElementById('ro-ver');if(!v)return;setInterval(function(){if((window.roVariant==='_m'||window.roVariant==='_a')&&!v.__m){v.__m=1;v.appendChild(document.createTextNode(window.roVariant==='_a'?' · 안드로이드판':' · i'));}var o=document.getElementById('ro-entry-overlay'),on=!!(o&&o.isConnected);if(on)window.__roInWorld=0;v.style.display=(on||!window.__roInWorld)?'block':'none';},400);})();</script>
 </body>
 </html>
