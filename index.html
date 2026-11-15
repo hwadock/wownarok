@@ -98,7 +98,7 @@
       }
 
       var roGet = function (f) { try { var x = new XMLHttpRequest(); x.open("GET", f + "?t=" + Date.now(), false); x.send(); return x.status == 200 ? x.responseText.trim() : ""; } catch (e) { return ""; } };
-      var roCode = "4d19f8f5xb8ffbdc8";   // 처음엔 이 입구에 박힌 판 — 실제 판은 아래 tryStart 가 서버 PC 입구(대체 Pages)에서 읽어 바꾼다
+      var roCode = "6d9259bbxf8a9851d";   // 처음엔 이 입구에 박힌 판 — 실제 판은 아래 tryStart 가 서버 PC 입구(대체 Pages)에서 읽어 바꾼다
       var roCdn = roGet("cdn.txt").replace(/\/+$/, ""); if (!/^https?:\/\/[^\s\/"'<>]+(\/[^\s"'<>]*)?$/.test(roCdn)) roCdn = "";
       var buildUrl = "b_" + roCode;
       // 휴대폰판 고르기(2026-11-12 사용자 결정 '그래픽 능력 검사') — DXT(s3tc)를 못 쓰고 ASTC 를 쓰는 기기는 ASTC 판:
@@ -230,11 +230,13 @@
       } else {
         // Desktop style: Render the game canvas container in a window that can be maximized to fullscreen:
         var roFitDesktop = function () {
-          var s = Math.min(window.innerWidth / 540, (window.innerHeight - 40) / 960);
-          if (document.fullscreenElement) s = Math.min(window.innerWidth / 540, window.innerHeight / 960);
-          fullscreenContainer.style.width = Math.floor(540 * s) + "px";
+          var W = 960 * (window.__roAR || 540 / 960);   // 가로 ÷ 세로 — 화면 비율 버튼(AspectToggleButton → jslib RoSetAspect → roSetAspect)이 바꾼다
+          var s = Math.min(window.innerWidth / W, (window.innerHeight - 40) / 960);
+          if (document.fullscreenElement) s = Math.min(window.innerWidth / W, window.innerHeight / 960);
+          fullscreenContainer.style.width = Math.floor(W * s) + "px";
           fullscreenContainer.style.height = Math.floor(960 * s) + "px";
         };
+        window.roSetAspect = function (fold) { window.__roAR = fold ? 1248 / 1972 : 540 / 960; roFitDesktop(); };   // 2026-11-15 사용자 — 기본 9:16, 누르면 갤럭시 폴드8 접었을 때(10:16, 1248×1972)
         roFitDesktop();
         window.addEventListener("resize", roFitDesktop);
         document.addEventListener("fullscreenchange", roFitDesktop);
@@ -409,7 +411,7 @@ setTimeout(apply,500);
 setInterval(sizeCanvas,1000);
 })();
 </script>
-<div id="ro-ver" aria-hidden="true" style="position:fixed;left:calc(8px + env(safe-area-inset-left));bottom:calc(6px + env(safe-area-inset-bottom));z-index:2147483000;pointer-events:none;font:700 12px/1.2 'Noto Sans KR','Malgun Gothic',sans-serif;color:rgba(255,255,255,.6);text-shadow:0 1px 2px #000a;letter-spacing:.02em;background:rgba(20,14,10,.55);padding:2px 7px;border-radius:7px">v0.1.134 <span style="opacity:.55;font-weight:400">4d19f8f5</span></div>
+<div id="ro-ver" aria-hidden="true" style="position:fixed;left:calc(8px + env(safe-area-inset-left));bottom:calc(6px + env(safe-area-inset-bottom));z-index:2147483000;pointer-events:none;font:700 12px/1.2 'Noto Sans KR','Malgun Gothic',sans-serif;color:rgba(255,255,255,.6);text-shadow:0 1px 2px #000a;letter-spacing:.02em;background:rgba(20,14,10,.55);padding:2px 7px;border-radius:7px">v0.1.135 <span style="opacity:.55;font-weight:400">6d9259bb</span></div>
 <script>(function(){var v=document.getElementById('ro-ver');if(!v)return;setInterval(function(){if((window.roVariant==='_m'||window.roVariant==='_a')&&!v.__m){v.__m=1;v.appendChild(document.createTextNode(window.roVariant==='_a'?' · 안드로이드판':' · i'));}var o=document.getElementById('ro-entry-overlay'),on=!!(o&&o.isConnected);if(on)window.__roInWorld=0;v.style.display=(on||!window.__roInWorld)?'block':'none';},400);})();</script>
 </body>
 </html>
