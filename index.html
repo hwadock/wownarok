@@ -28,7 +28,6 @@
   var onDown = function (e) {
     var t = e.target;
     if (t && t.closest && t.closest("input,textarea,select,label,[contenteditable]")) return;
-    document.removeEventListener("pointerdown", onDown, true);
     if (document.fullscreenElement) return;
     try { var r = document.documentElement.requestFullscreen({ navigationUI: "hide" }); if (r && r.catch) r.catch(function () {}); } catch (e2) {}
   };
@@ -99,7 +98,7 @@
       }
 
       var roGet = function (f) { try { var x = new XMLHttpRequest(); x.open("GET", f + "?t=" + Date.now(), false); x.send(); return x.status == 200 ? x.responseText.trim() : ""; } catch (e) { return ""; } };
-      var roCode = "0ee6f98dx8fe6bb35";   // 처음엔 이 입구에 박힌 판 — 실제 판은 아래 tryStart 가 서버 PC 입구(대체 Pages)에서 읽어 바꾼다
+      var roCode = "50081782x30586f57";   // 처음엔 이 입구에 박힌 판 — 실제 판은 아래 tryStart 가 서버 PC 입구(대체 Pages)에서 읽어 바꾼다
       var roCdn = roGet("cdn.txt").replace(/\/+$/, ""); if (!/^https?:\/\/[^\s\/"'<>]+(\/[^\s"'<>]*)?$/.test(roCdn)) roCdn = "";
       var buildUrl = "b_" + roCode;
       // 휴대폰판 고르기(2026-11-12 사용자 결정 '그래픽 능력 검사') — DXT(s3tc)를 못 쓰고 ASTC 를 쓰는 기기는 ASTC 판:
@@ -413,7 +412,48 @@ setTimeout(apply,500);
 setInterval(sizeCanvas,1000);
 })();
 </script>
-<div id="ro-ver" aria-hidden="true" style="position:fixed;left:calc(8px + env(safe-area-inset-left));bottom:calc(6px + env(safe-area-inset-bottom));z-index:2147483000;pointer-events:none;font:700 12px/1.2 'Noto Sans KR','Malgun Gothic',sans-serif;color:rgba(255,255,255,.6);text-shadow:0 1px 2px #000a;letter-spacing:.02em;background:rgba(20,14,10,.55);padding:2px 7px;border-radius:7px">v0.1.141 <span style="opacity:.55;font-weight:400">0ee6f98d</span></div>
+<script id="ro-guard">// 뒤로가기 가로채기(게임 나가기 확인 창)·당겨서 새로고침/튕김 끄기 — index.html 에 그대로 넣음(WebGLNoUnityLogo)
+// 2026-11-16 사용자 "게임 화면에서 뒤로가기 제스처·하단 버튼이 자꾸 눌려 앱이 바뀌고 넘어가 버린다 — 막을 수 있나" → '전부 해'(UI 세션 요청).
+//   ① 첫 누름(크롬은 사용자 누름이 있어야 쌓은 칸을 뒤로가기가 존중) 때 history 한 칸을 쌓고, popstate(안드로이드 뒤로 제스처·버튼, 아이폰 가장자리 밀기)가 오면
+//      다시 쌓은 뒤 '게임을 나가시겠어요?' 창. '나가기'면 진짜로 뒤로. 아이폰 홈 바(위로 쓸기)는 웹에서 못 막는다.
+//   ③ 페이지 전체 당겨서 새로고침·튕김 끄기(overscroll-behavior), 게임 캔버스는 브라우저 몸짓 없이(touch-action:none). 글 카드 안 스크롤은 그대로.
+(function(){
+var st=document.createElement('style');
+st.textContent='html,body{overscroll-behavior:none}#unity-canvas{touch-action:none}';
+document.head.appendChild(st);
+if(!window.history||!history.pushState)return;
+var armed=false,leaving=false,box=null;
+var arm=function(){if(armed)return;armed=true;try{history.pushState({roGuard:1},'');}catch(e){}};
+document.addEventListener('pointerdown',arm,true);
+document.addEventListener('keydown',arm,true);
+var close=function(){if(box){box.remove();box=null;}};
+var ask=function(){
+ if(box)return;
+ box=document.createElement('div');box.id='ro-leave';
+ box.style.cssText='position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;background:#000a;font-family:\'Noto Sans KR\',\'Apple SD Gothic Neo\',\'Malgun Gothic\',sans-serif;word-break:keep-all';
+ var c=document.createElement('div');
+ c.style.cssText='width:min(84vw,340px);box-sizing:border-box;padding:24px 20px 20px;border:3px solid #c98f3e;border-radius:20px;background:radial-gradient(ellipse at top,#71462c,#352014 80%);box-shadow:0 10px 30px #000c;text-align:center;color:#fff1cd';
+ c.innerHTML='<div style="font-size:21px;font-weight:900;color:#f3ca73;text-shadow:0 2px #2a1208;margin-bottom:8px">게임을 나가시겠어요?</div>'+
+  '<div style="font-size:14px;color:#e7c99d;margin-bottom:18px">나가면 지금 화면이 닫혀요.</div>';
+ var row=document.createElement('div');row.style.cssText='display:flex;gap:10px';
+ var mk=function(t,main){var b=document.createElement('button');b.type='button';b.textContent=t;
+  b.style.cssText='flex:1;min-width:0;padding:13px 4px;border-radius:14px;font:inherit;font-size:17px;font-weight:800;cursor:pointer;'+
+   (main?'border:2px solid #f6d27a;background:linear-gradient(#ffd966,#d99a2b);color:#3a1d06':'border:2px solid #8d6a45;background:#2e2018;color:#e7c99d');
+  row.appendChild(b);return b;};
+ var stay=mk('계속하기',true),go=mk('나가기',false);
+ c.appendChild(row);box.appendChild(c);document.body.appendChild(box);
+ stay.onclick=close;
+ box.onclick=function(e){if(e.target===box)close();};
+ go.onclick=function(){leaving=true;close();history.go(-2);setTimeout(function(){leaving=false;},1500);};
+};
+window.addEventListener('popstate',function(){
+ if(leaving||!armed)return;
+ try{history.pushState({roGuard:1},'');}catch(e){}
+ ask();
+});
+})();
+</script>
+<div id="ro-ver" aria-hidden="true" style="position:fixed;left:calc(8px + env(safe-area-inset-left));bottom:calc(6px + env(safe-area-inset-bottom));z-index:2147483000;pointer-events:none;font:700 12px/1.2 'Noto Sans KR','Malgun Gothic',sans-serif;color:rgba(255,255,255,.6);text-shadow:0 1px 2px #000a;letter-spacing:.02em;background:rgba(20,14,10,.55);padding:2px 7px;border-radius:7px">v0.1.142 <span style="opacity:.55;font-weight:400">50081782</span></div>
 <script>(function(){var v=document.getElementById('ro-ver');if(!v)return;setInterval(function(){if((window.roVariant==='_m'||window.roVariant==='_a')&&!v.__m){v.__m=1;v.appendChild(document.createTextNode(window.roVariant==='_a'?' · 안드로이드판':' · i'));}var o=document.getElementById('ro-entry-overlay'),on=!!(o&&o.isConnected);if(on)window.__roInWorld=0;v.style.display=(on||!window.__roInWorld)?'block':'none';},400);})();</script>
 </body>
 </html>
