@@ -98,7 +98,7 @@
       }
 
       var roGet = function (f) { try { var x = new XMLHttpRequest(); x.open("GET", f + "?t=" + Date.now(), false); x.send(); return x.status == 200 ? x.responseText.trim() : ""; } catch (e) { return ""; } };
-      var roCode = "de50373ex47b404c2";   // 처음엔 이 입구에 박힌 판 — 실제 판은 아래 tryStart 가 서버 PC 입구(대체 Pages)에서 읽어 바꾼다
+      var roCode = "eac9d8b9xc128e802";   // 처음엔 이 입구에 박힌 판 — 실제 판은 아래 tryStart 가 서버 PC 입구(대체 Pages)에서 읽어 바꾼다
       var roCdn = roGet("cdn.txt").replace(/\/+$/, ""); if (!/^https?:\/\/[^\s\/"'<>]+(\/[^\s"'<>]*)?$/.test(roCdn)) roCdn = "";
       var buildUrl = "b_" + roCode;
       // 휴대폰판 고르기(2026-11-12 사용자 결정 '그래픽 능력 검사') — DXT(s3tc)를 못 쓰고 ASTC 를 쓰는 기기는 ASTC 판:
@@ -372,10 +372,12 @@ var pw=0,ph=0,held=false;
 //   그리기 버퍼·카메라 렌더 텍스처를 그 크기로 다시 만든다. 회전 순간(가로 크기로 한 번, 세로로 또 한 번)·주소 표시줄이 들고 날 때마다 새로 잡혀
 //   총량 여유(30~40MB)를 넘겼다. 휴대폰에선 그 맞춤을 끄고 여기서 정한다: 가로일 땐 안 바꾸고(마지막 세로 크기), 세로 안에서도 높이 변화가 15% 미만이면
 //   그대로 두고 CSS 로 늘인다(주소 표시줄 정도 — 그림이 아주 조금 늘어나 보일 뿐, 터치 좌표는 유니티가 화면 크기 비율로 맞춘다).
-var cw=0,ch=0,sh=0,sAt=0;
-if(phone()&&window.config)window.config.matchWebGLToCanvasSize=false;
+var cw=0,ch=0,sh=0,sAt=0,own=false;
+if(phone()&&window.config){window.config.matchWebGLToCanvasSize=false;own=true;}
+// 2026-11-17 QA v0.1.146 '로딩 중 창 크기가 바뀌면 HUD 가 옛 크기로 남아 잘림' — 맞춤을 껐으면(own) 그 뒤 휴대폰 판정이 바뀌어도 여기서 계속 맞춘다
+//   (예전엔 phone() 이 거짓이 되면 아무도 버퍼를 안 맞춰 옛 크기로 남았다). 가로 휴대폰일 때만 쉰다
 function sizeCanvas(){
- if(!phone()||landscape())return;
+ if(!own||(phone()&&landscape()))return;
  var cv=document.getElementById('unity-canvas');if(!cv)return;
  var r=cv.getBoundingClientRect();if(r.width<10||r.height<10)return;
  var d=(window.config&&window.config.devicePixelRatio)||Math.min(window.devicePixelRatio||1,2);
@@ -409,7 +411,7 @@ if(screen.orientation&&screen.orientation.addEventListener)screen.orientation.ad
 document.addEventListener('fullscreenchange',lock);
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply);else apply();
 setTimeout(apply,500);
-setInterval(sizeCanvas,1000);
+setInterval(apply,1000);   // 크기 바뀜 알림을 놓쳐도(로딩 중·흉내 바뀜) 1초 안에 가로 고정 풀기·버퍼 맞춤을 다시 본다
 })();
 </script>
 <script id="ro-guard">// 뒤로가기 가로채기(게임 나가기 확인 창)·당겨서 새로고침/튕김 끄기 — index.html 에 그대로 넣음(WebGLNoUnityLogo)
@@ -453,7 +455,7 @@ window.addEventListener('popstate',function(){
 });
 })();
 </script>
-<div id="ro-ver" aria-hidden="true" style="position:fixed;left:calc(8px + env(safe-area-inset-left));bottom:calc(6px + env(safe-area-inset-bottom));z-index:2147483000;pointer-events:none;font:700 12px/1.2 'Noto Sans KR','Malgun Gothic',sans-serif;color:rgba(255,255,255,.6);text-shadow:0 1px 2px #000a;letter-spacing:.02em;background:rgba(20,14,10,.55);padding:2px 7px;border-radius:7px">v0.1.146 <span style="opacity:.55;font-weight:400">de50373e</span></div>
+<div id="ro-ver" aria-hidden="true" style="position:fixed;left:calc(8px + env(safe-area-inset-left));bottom:calc(6px + env(safe-area-inset-bottom));z-index:2147483000;pointer-events:none;font:700 12px/1.2 'Noto Sans KR','Malgun Gothic',sans-serif;color:rgba(255,255,255,.6);text-shadow:0 1px 2px #000a;letter-spacing:.02em;background:rgba(20,14,10,.55);padding:2px 7px;border-radius:7px">v0.1.147 <span style="opacity:.55;font-weight:400">eac9d8b9</span></div>
 <script>(function(){var v=document.getElementById('ro-ver');if(!v)return;setInterval(function(){if((window.roVariant==='_m'||window.roVariant==='_a')&&!v.__m){v.__m=1;v.appendChild(document.createTextNode(window.roVariant==='_a'?' · 안드로이드판':' · i'));}var o=document.getElementById('ro-entry-overlay'),on=!!(o&&o.isConnected);if(on)window.__roInWorld=0;v.style.display=(on||!window.__roInWorld)?'block':'none';},400);})();</script>
 </body>
 </html>
