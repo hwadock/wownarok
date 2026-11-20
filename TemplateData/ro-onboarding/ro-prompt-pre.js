@@ -2430,15 +2430,24 @@ mergeInto(LibraryManager.library, {
       col.insertBefore(layer, dots);
       void pic.offsetWidth;
       requestAnimationFrame(function () { layer.style.opacity = "1"; });
-      var go = function (sec) {   // 같은 속도로(2026-11-16 사용자 "가감 없이 같은 속도") — 길이 = 이 장이 끝날 때까지(panGo)
-        if (layer !== myLayer) return;
-        pic.style.transition = "transform " + sec + "s linear" + (px0 !== null ? ",background-position " + sec + "s linear" : "");
-        void pic.offsetWidth;
-        pic.style.transform = "translate(" + pan[3] + "%," + pan[4] + "%) scale(" + pan[5] + ")";
-        if (px0 !== null) pic.style.backgroundPosition = px1 + "% 50%";
-      }, myLayer = layer;
+      // 그림 흐름 = 나타나는 첫 프레임부터 움직이고, 사라지는 동안에도 멈추지 않고 이어 간다(2026-11-20 사용자 "스르륵 나오면서 이미 이동은 시작돼야, 사라지면서도 계속 이동") —
+      //   예전엔 나레이션 길이를 안 뒤에야(첫 장 1초 넘게) 움직이고, 장 끝에 도착해 멈춘 채 흐려졌다. 이제 rAF 로 지금 자리에서 남은 시간 동안 같은 속도로 가며,
+      //   길이를 알게 되면(panGo) 남은 시간만 고쳐 잡는다. 남은 시간 = 이 장이 끝날 때까지 + 사라지는 0.7초(다음 장이 겹쳐 흐려지는 동안도 이동)
+      var pp = 0, rem = (n === 0 ? 13 : 11), last = 0;   // 길이를 끝내 모르면 예전 대략 값(나타남 대기 + 9~10초)
+      var put = function () {
+        var k = function (a, b) { return a + (b - a) * pp; };
+        pic.style.transform = "translate(" + k(pan[0], pan[3]) + "%," + k(pan[1], pan[4]) + "%) scale(" + k(pan[2], pan[5]) + ")";
+        if (px0 !== null) pic.style.backgroundPosition = k(px0, px1) + "% 50%";
+      };
+      var tick = function (now) {
+        if (!pic.isConnected && last) return;   // 장이 지워지면 멈춤
+        var dt = last ? Math.min(.1, (now - last) / 1000) : 0; last = now;
+        if (pp < 1 && dt > 0) { pp = rem <= dt ? 1 : pp + (1 - pp) * dt / rem; rem -= dt; put(); }
+        if (pp < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+      var go = function (sec) { if (layer === myLayer) rem = sec + .7; }, myLayer = layer;   // 같은 속도로(2026-11-16 사용자 "가감 없이 같은 속도") — 남은 시간만 고침
       panStart = go;
-      setTimeout(function () { if (panStart === go) panGo(n === 0 ? 10 : 9); }, n === 0 ? 3000 : 2000);   // 길이를 끝내 모르면 예전처럼 대략
       if (old) { old.style.opacity = "0"; setTimeout(function () { old.remove(); }, 700); }
       dotEls.forEach(function (d, k) { d.style.background = k === n ? "#FFD966" : k < n ? "#C9963F" : "#fff1cd44"; d.style.transform = k === n ? "scale(1.3)" : ""; });
       if (list[n + 1]) { var pre = new Image(); pre.src = DIR + list[n + 1].img; }
