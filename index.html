@@ -98,7 +98,7 @@
       }
 
       var roGet = function (f) { try { var x = new XMLHttpRequest(); x.open("GET", f + "?t=" + Date.now(), false); x.send(); return x.status == 200 ? x.responseText.trim() : ""; } catch (e) { return ""; } };
-      var roCode = "6721574fx8b97dfee";   // 처음엔 이 입구에 박힌 판 — 실제 판은 아래 tryStart 가 서버 PC 입구(대체 Pages)에서 읽어 바꾼다
+      var roCode = "4a092ec8x00be8108";   // 처음엔 이 입구에 박힌 판 — 실제 판은 아래 tryStart 가 서버 PC 입구(대체 Pages)에서 읽어 바꾼다
       var roCdn = roGet("cdn.txt").replace(/\/+$/, ""); if (!/^https?:\/\/[^\s\/"'<>]+(\/[^\s"'<>]*)?$/.test(roCdn)) roCdn = "";
       var buildUrl = "b_" + roCode;
       // 휴대폰판 고르기(2026-11-12 사용자 결정 '그래픽 능력 검사') — DXT(s3tc)를 못 쓰고 ASTC 를 쓰는 기기는 ASTC 판:
@@ -237,10 +237,9 @@
           fullscreenContainer.style.width = Math.floor(W * s) + "px";
           fullscreenContainer.style.height = Math.floor(960 * s) + "px";
         };
-        window.roSetAspect = function (mode) {   // 2026-11-20 사용자 — 버튼 세 단계: 0 = 9:16, 1 = 폴드 10:14(2026-11-15), 2 = 전체 화면(창 꽉 채움 + 브라우저 전체 화면)
+        window.roSetAspect = function (mode) {   // 2026-11-20 사용자 — 버튼 세 단계: 0 = 9:16, 1 = 폴드 10:14(2026-11-15), 2 = 브라우저 창 꽉 채움
+          //   진짜 전체 화면(requestFullscreen)은 하지 않는다 — 같은 날 사용자 '브라우저에만 꽉 차게, 꽉 찬 전체 화면은 F11 로'
           window.__roAR = mode == 1 ? 10 / 14 : 540 / 960; window.__roFull = mode == 2;
-          try { if (mode == 2 && !document.fullscreenElement) { var r = document.documentElement.requestFullscreen(); if (r && r.catch) r.catch(function () {}); }
-                else if (mode != 2 && document.fullscreenElement) { var q = document.exitFullscreen(); if (q && q.catch) q.catch(function () {}); } } catch (e) {}
           roFitDesktop();
         };
         roFitDesktop();
@@ -461,8 +460,8 @@ window.addEventListener('popstate',function(){
 });
 })();
 </script>
-<script id="ro-pre-load">(function(){if(/[?&]nopre\b/.test(location.search))return;try{if((localStorage.getItem('ro_login_keep')||'').indexOf('\n')>0)return;}catch(e){}var s=document.createElement('script');s.src='TemplateData/ro-onboarding/ro-prompt-pre.js?v=31c47b8fd29e';s.onload=function(){if(window.__roPre&&window.__roPre.open)window.__roPre.open();};document.body.appendChild(s);})();</script>
-<div id="ro-ver" aria-hidden="true" style="position:fixed;left:calc(8px + env(safe-area-inset-left));bottom:calc(6px + env(safe-area-inset-bottom));z-index:2147483000;pointer-events:none;font:700 12px/1.2 'Noto Sans KR','Malgun Gothic',sans-serif;color:rgba(255,255,255,.6);text-shadow:0 1px 2px #000a;letter-spacing:.02em;background:rgba(20,14,10,.55);padding:2px 7px;border-radius:7px">v0.1.166 <span style="opacity:.55;font-weight:400">6721574f</span></div>
+<script id="ro-pre-load">(function(){if(/[?&]nopre\b/.test(location.search))return;try{if((localStorage.getItem('ro_login_keep')||'').indexOf('\n')>0)return;}catch(e){}var s=document.createElement('script');s.src='TemplateData/ro-onboarding/ro-prompt-pre.js?v=b416be7ce57f';s.onload=function(){if(window.__roPre&&window.__roPre.open)window.__roPre.open();};document.body.appendChild(s);})();</script>
+<div id="ro-ver" aria-hidden="true" style="position:fixed;left:calc(8px + env(safe-area-inset-left));bottom:calc(6px + env(safe-area-inset-bottom));z-index:2147483000;pointer-events:none;font:700 12px/1.2 'Noto Sans KR','Malgun Gothic',sans-serif;color:rgba(255,255,255,.6);text-shadow:0 1px 2px #000a;letter-spacing:.02em;background:rgba(20,14,10,.55);padding:2px 7px;border-radius:7px">v0.1.167 <span style="opacity:.55;font-weight:400">4a092ec8</span></div>
 <script>(function(){var v=document.getElementById('ro-ver');if(!v)return;setInterval(function(){if((window.roVariant==='_m'||window.roVariant==='_a')&&!v.__m){v.__m=1;v.appendChild(document.createTextNode(window.roVariant==='_a'?' · 안드로이드판':' · i'));}var o=document.getElementById('ro-entry-overlay'),on=!!(o&&o.isConnected);if(on)window.__roInWorld=0;var pr=document.getElementById('ro-prologue');v.style.display=(pr&&pr.isConnected)?'none':(on||!window.__roInWorld)?'block':'none';},400);})();</script>
 </body>
 </html>

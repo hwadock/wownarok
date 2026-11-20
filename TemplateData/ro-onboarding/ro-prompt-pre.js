@@ -1055,7 +1055,7 @@ mergeInto(LibraryManager.library, {
 
   RoConnectionUnavailable__deps: ["$RoCard", "$RoEntryUI", "RoReload", "$RoMaintCard"],
   RoConnectionUnavailable: function (messagePtr, updateRequired) {
-    if (updateRequired !== 1 && updateRequired !== 2) {
+    if (updateRequired !== 1 && updateRequired !== 2 && updateRequired !== 3) {
       // 서버를 내렸을 때(서버 PC 도 안 닿음 — 갈래 2 는 아래 평범한 카드) — 글자뿐인 카드 대신 포링 점검 카드(2026-11-09 사용자). 다시 접속은 카드 아래 버튼
       var m = RoMaintCard("잠시 후 다시 접속해 주세요", "", true);   // 예고 없이 서버가 꺼짐 = 긴급 점검 그림
       m.c.card.setAttribute("role", "alert");
@@ -1073,7 +1073,7 @@ mergeInto(LibraryManager.library, {
       m.c.wrap.appendChild(again);
       return;
     }
-    if (updateRequired === 2) {
+    if (updateRequired === 2 || updateRequired === 3) {   // 3 = 다른 곳에서 같은 계정으로 접속해 밀려남(2026-11-20) — 같은 카드, 버튼은 새로고침
       // 내 연결만 끊김 — 점검 카드와 같은 두루마리 그림 카드(2026-11-11 사용자 시안 A '끊어진 밧줄다리', Concept/ui/disconnect/).
       //   그림 disconnect_bg.jpg 는 점검 그림과 같은 2:3·두루마리 배치이지만 아래 둥근 고리 자리 대신 금테 알약 모양 버튼 자리(가로 33.5~65.6%, 세로 78.7~83%)가 있다.
       //   글 칸 = 왼 11.5%·위 40.5%·폭 77%(버튼 자리 위까지). 누르면 카드는 그대로 두고 제목 '다시 잇는 중' + 버튼 자리에 도는 고리·'접속 중입니다'.
@@ -1086,12 +1086,13 @@ mergeInto(LibraryManager.library, {
       if (dc.rim.lastChild && dc.rim.lastChild !== dc.card) dc.rim.removeChild(dc.rim.lastChild);   // 점검 카드의 둥근 로딩 고리(이 그림엔 고리 자리가 없다)
       dc.card.style.left = "11.5%"; dc.card.style.top = "40.5%"; dc.card.style.width = "77%"; dc.card.style.height = "37.2%";
       var title = dc.card.querySelector("h1");
-      title.textContent = "연결이 끊겼습니다"; title.style.color = "#FFD966";
+      title.textContent = updateRequired === 3 ? "다른 곳에서 접속했습니다" : "연결이 끊겼습니다"; title.style.color = "#FFD966";
       var slot = document.createElement("button"); slot.type = "button"; slot.textContent = "다시 접속";
       slot.style.cssText = "position:absolute;left:29%;top:77.66%;width:42%;height:6.4%;box-sizing:border-box;padding:0;margin:0;border:3px solid #d7891b;border-top-color:#fff1a9;border-radius:999px;background:linear-gradient(#ffe78a,#ffc336 48%,#efa214);color:#452108;box-shadow:inset 0 2px #fff8,0 3px 0 #793b0d,0 5px 8px #0006;cursor:pointer;font-family:inherit;font-weight:900;font-size:clamp(19px,6vw,27px);line-height:1;white-space:nowrap;display:flex;align-items:center;justify-content:center";
       slot.onclick = function () {
         if (slot.disabled) return;
         slot.disabled = true;
+        if (updateRequired === 3) { _RoReload(); return; }   // 실린 게임을 통째로 비우고 새로 들어간다(아이폰 메모리)
         title.textContent = "다시 잇는 중";
         d.message.textContent = "서버와 다시 이어 보고 있어요.\n잠시만 기다려 주세요";
         slot.innerHTML = "<span aria-hidden='true' style='width:1.1em;height:1.1em;flex:none;margin-right:.5em;box-sizing:border-box;border:3px solid #c9963f33;border-top-color:#F2C77A;border-right-color:#C9963F;border-radius:50%;animation:roEntrySpin 1.1s linear infinite'></span>접속 중입니다";
@@ -3785,6 +3786,17 @@ mergeInto(LibraryManager.library, {
     var ph = UTF8ToString(placeholderPtr), was = inp.dataset.ph;
     inp.dataset.ph = ph;
     if (inp.placeholder === was) inp.placeholder = ph;   // 마이크 안내처럼 잠깐 띄운 글이면 그 글이 끝날 때 새 안내 글로 돌아간다
+  },
+  // 게임 채팅 창의 보내기(종이비행기) 버튼 — 열린 입력줄에 친 글을 꺼내고 비운다(없으면 빈 글). 글은 NetChat 이 엔터·HTML 보내기와 같은 Send 로 보낸다
+  //   2026-11-20 QA v0.1.166: 웹에선 이 버튼이 늘 '창 닫기'라 '/qa tp …' 를 쳐 놓고 눌러도 안 보내지고 글만 입력칸에 남았다
+  RoChatTake: function (peek) {
+    var bar = document.getElementById("ro-chat-bar"), inp = document.getElementById("ro-chat-input");
+    var v = (bar && inp && bar.style.display !== "none" && inp.value.trim().length) ? inp.value : "";
+    if (v && !peek) { inp.value = ""; inp.maxLength = 60; inp.focus({ preventScroll: true }); }
+    var size = lengthBytesUTF8(v) + 1;
+    var buf = _malloc(size);
+    stringToUTF8(v, buf, size);
+    return buf;
   },
   // 채팅창을 닫으면 입력줄도 숨긴다(ChatView 닫기 → NetChat.CloseInput)
   RoChatClose: function () {
