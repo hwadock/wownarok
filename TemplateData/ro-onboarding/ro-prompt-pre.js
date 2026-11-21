@@ -2656,7 +2656,7 @@ mergeInto(LibraryManager.library, {
       if (st.faceQueue) { st.faceQueue.cancel(); st.faceQueue = null; } st.faceQ = null;
       discardJob(st.job); st.job = ""; st.up = null; st.sent = false;
       result = null; waiting = false; lastPct = 0;
-      if (st.thumb) URL.revokeObjectURL(st.thumb); st.thumb = null;
+      if (st.thumb) URL.revokeObjectURL(st.thumb); st.thumb = null; st.faceFile = null;
     };
     // 고른·찍은 사진 하나로 — 미리보기 그림을 잡아 두고 올리기를 시작한 뒤 다음 단계(다시 올리기면 바로 기다림)
     var usePhoto = function (f) {
@@ -2665,6 +2665,7 @@ mergeInto(LibraryManager.library, {
       if (st.race !== 0 && st.race !== 1) { showRace(); return; }
       if (st.thumb) URL.revokeObjectURL(st.thumb);
       st.thumb = URL.createObjectURL(f); st.photoNotice = ""; st.noPhoto = false;
+      if (st.mode === "custom" && !st.started) { st.faceFile = f; showOutfit(); return; }   // 나만의 캐릭터 = 얼굴과 의상을 한 번에 만든다 — 의상 단계까지 받은 뒤 올린다
       upload(f);
       startFaceProgress();
       if (st.started) { c.wrap.remove(); wait(); } else afterPhoto();   // 2026-11-10 사진 다음 = 목소리 녹음(이름·비번은 사진 앞으로)
@@ -2716,16 +2717,19 @@ mergeInto(LibraryManager.library, {
       if (!svcReady.done) { svcReady.then(function () { svcReady.done = true; askFace(); }); return; }
       if (svcOff.face) { stopCam(); invalidatePhoto(); st.noPhoto = true; st.photoNotice = ""; afterPhoto(); return; }   // 얼굴 만들기 꺼짐 = '기본 얼굴로'를 누른 것과 같은 길
       stopCam();
-      c.card.innerHTML = c.raceShell(5, "내 얼굴로 만들까요?", "사진 한 장으로 캐릭터 얼굴을 만들어요", 7);
+      // 2026-11-21 사용자 "얼굴·사운드를 나눠 물었는데 통합 — 나만의 캐릭터 or 기본 캐릭터, 버튼 두 개로" — 나만의 = 얼굴 사진 → 바로 녹음(목소리 물음 없음),
+      //   기본 = 사진·녹음 없이 기본 얼굴 고르기로(예전 '기본 얼굴로' + '기본 목소리로'를 한 번에)
+      st.mode = null;
+      c.card.innerHTML = c.raceShell(5, "어떻게 만들까요?", "", 7);
       c.anim();
-      var make = c.mainBtn("사진으로 만들기"); make.type = "button"; make.classList.add("ro-race-next");
-      make.onclick = function () { showPhoto(); };
-      var no = c.defaultFaceBtn("기본 얼굴로"); no.classList.add("ro-face-ask-skip");
-      no.onclick = function () { invalidatePhoto(); st.noPhoto = true; st.photoNotice = ""; afterPhoto(); };
-      askTiles([[make, "<rect x='6' y='16' width='52' height='38' rx='7'/><path d='M22 16 l5 -7 h10 l5 7'/><circle cx='32' cy='35' r='10'/>", "사진으로<br>만들기"],
-                [no, "<circle cx='32' cy='32' r='24'/><circle cx='24' cy='28' r='2.5' fill='currentColor'/><circle cx='40' cy='28' r='2.5' fill='currentColor'/><path d='M22 40 q10 9 20 0'/>", "기본 얼굴로"]]);
+      var make = c.mainBtn("나만의 캐릭터"); make.type = "button"; make.classList.add("ro-race-next");
+      make.onclick = function () { st.mode = "custom"; showPhoto(); };
+      var no = c.defaultFaceBtn("기본 캐릭터"); no.classList.add("ro-face-ask-skip");
+      no.onclick = function () { st.mode = "preset"; invalidatePhoto(); st.noPhoto = true; st.photoNotice = ""; afterPhoto(); };
+      askTiles([[make, "<rect x='6' y='16' width='52' height='38' rx='7'/><path d='M22 16 l5 -7 h10 l5 7'/><circle cx='32' cy='35' r='10'/>", "나만의<br>캐릭터"],
+                [no, "<circle cx='32' cy='32' r='24'/><circle cx='24' cy='28' r='2.5' fill='currentColor'/><circle cx='40' cy='28' r='2.5' fill='currentColor'/><path d='M22 40 q10 9 20 0'/>", "기본<br>캐릭터"]]);
       c.card.appendChild(c.stepBack(showPin));   // 뒤로가기 = 3 비밀번호
-      serviceDown("face", make, c.card, "얼굴 만들기가 잠시 멈췄어요 · 기본 얼굴로 시작해 주세요");
+      serviceDown("face", make, c.card, "나만의 캐릭터 만들기가 잠시 멈췄어요 · 기본 캐릭터로 시작해 주세요");
     };
     showPhoto = function () {
       stopCam();
@@ -2953,10 +2957,65 @@ mergeInto(LibraryManager.library, {
       idle();
       if (st.thumb && !st.started) {
         var next = c.mainBtn("다음");
-        next.onclick = function () { stopCam(); afterPhoto(); };
+        next.onclick = function () { stopCam(); if (st.mode === "custom" && st.faceFile) showOutfit(); else afterPhoto(); };
         c.card.appendChild(next);
       }
       if (!st.started) c.card.appendChild(c.stepBack(function () { stopCam(); lowPower(false); askFace(); }));   // 뒤로가기 = 4 '내 얼굴로 만들까요?'(얼굴 고르기에서 돌아온 사진 단계는 없음)
+    };
+
+    // ── 나만의 캐릭터: 얼굴 사진 다음 의상 사진(2026-11-21 사용자 확정, 애니 세션 안내) — 옷 사진 한 장 + 글 메모(선택), 건너뛰면 기본 의상.
+    //   얼굴·의상 두 장으로 시트 한 장을 만드니 얼굴 생성은 여기서(다음 또는 건너뛰기) 한 번에 요청한다.
+    //   ★의상 서버·필드 이름은 아직 없다 — 지금은 st.outfit {file, memo} 에 잡아 두기만 하고 얼굴만 올린다(서버가 정해지면 upload 에서 같이 보낸다)
+    var showOutfit = function () {
+      stopCam();
+      c = RoCard(0);
+      c.card.innerHTML = c.raceShell(5, "의상 사진", "입고 싶은 옷 사진을 넣어 주세요", 7);
+      c.anim();
+      var o = st.outfit || { file: null, memo: "" };
+      var box = document.createElement("div");
+      box.style.cssText = "box-sizing:border-box;width:100%;height:clamp(110px,24vh,210px);border:3px solid #a76c3b;border-radius:18px;background:radial-gradient(ellipse,#4c2c1a,#28170f);box-shadow:inset 0 3px 8px #0006;" +
+        "display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#EBDDBC;overflow:hidden;position:relative";
+      var paint = function () {
+        box.innerHTML = o.file
+          ? "<svg width='56' height='56' viewBox='0 0 64 64' fill='none' stroke='var(--ro-ui-edge,#C9963F)' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'><circle cx='32' cy='32' r='26'/><path d='M20 33 l9 9 l16 -18'/></svg>" +
+            "<span style='font-size:16px;font-weight:700'>옷 사진을 넣었어요 — 바꾸려면 아래 버튼</span>"
+          : "<svg width='64' height='64' viewBox='0 0 64 64' fill='none' stroke='var(--ro-ui-edge,#C9963F)' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'>" +
+            "<path d='M22 8 l-14 8 l5 12 l6 -3 v31 h26 v-31 l6 3 l5 -12 l-14 -8 q-5 6 -10 6 q-5 0 -10 -6 z'/></svg>" +
+            "<span style='font-size:16px;font-weight:700'>옷 전체가 잘 보이면 좋아요</span>";
+        next.style.display = o.file ? "" : "none";
+      };
+      var mk = function (capture) {
+        var i = document.createElement("input"); i.type = "file"; i.accept = "image/*"; i.style.display = "none";
+        if (capture) i.setAttribute("capture", "environment");   // 휴대폰 = 뒤 카메라(옷을 찍는다)
+        i.onchange = function () { if (!i.isConnected) return; var f = i.files && i.files[0]; if (f) { o.file = f; st.outfit = o; paint(); } };
+        c.card.appendChild(i); return i;
+      };
+      var fileIn = mk(false), camIn = mk(true);
+      var row = document.createElement("div"); row.style.cssText = "display:flex;gap:10px;margin-top:4px";
+      [["사진 찍기", function () { saveResume(); (touch ? camIn : fileIn).click(); }], ["이미지 넣기", function () { saveResume(); fileIn.click(); }]].forEach(function (d) {
+        var b = c.mainBtn(d[0]); b.classList.add("ro-race-next"); b.style.flex = "1"; b.style.marginTop = "8px"; b.style.fontSize = "18px"; b.onclick = d[1]; row.appendChild(b);
+      });
+      var memo = document.createElement("input"); memo.type = "text"; memo.maxLength = 60; memo.value = o.memo || "";
+      memo.placeholder = "원하는 느낌을 적어도 돼요 (선택)";
+      memo.style.cssText = "box-sizing:border-box;width:100%;margin-top:12px;padding:10px 12px;font:inherit;font-size:16px;color:#fff1cd;background:#2a1a11;border:2px solid #a76c3b;border-radius:12px;outline:none";
+      memo.oninput = function () { o.memo = memo.value; st.outfit = o; };
+      var go = function (useOutfit) {   // 얼굴 사진 + (의상) → 한 번에 생성 요청 → 녹음
+        st.outfit = useOutfit && o.file ? { file: o.file, memo: (o.memo || "").trim() } : null;
+        if (!st.faceFile) { afterPhoto(); return; }
+        upload(st.faceFile);
+        startFaceProgress();
+        afterPhoto();
+      };
+      var next = c.mainBtn("다음"); next.style.marginTop = "12px"; next.onclick = function () { go(true); };
+      var skip = c.mainBtn("의상 사진 없이 진행");
+      skip.classList.remove("ro-race-next");
+      skip.style.cssText += ";margin-top:10px;font-size:16px;background:rgba(201,150,63,.12);color:#EBDDBC;clip-path:none;border:2px solid #C9963F;border-radius:12px;box-shadow:none;opacity:1";
+      skip.onclick = function () { go(false); };
+      var skipHint = document.createElement("div"); skipHint.textContent = "기본 의상 그대로 입어요";
+      skipHint.style.cssText = "color:#EBDDBC;opacity:.7;font-size:12px;text-align:center;margin-top:4px";
+      c.card.appendChild(box); c.card.appendChild(row); c.card.appendChild(memo); c.card.appendChild(next); c.card.appendChild(skip); c.card.appendChild(skipHint);
+      c.card.appendChild(c.stepBack(function () { showPhoto(); }));   // 뒤로가기 = 얼굴 사진
+      paint();
     };
 
     // ── 3 이름(= 아이디) ──
@@ -3067,7 +3126,15 @@ mergeInto(LibraryManager.library, {
           window.__roSttAuth = { n: st.name, p: st.pin }; SendMessage("NetSession", "OnHtmlNewStart", JSON.stringify({ name: st.name, pin: st.pin, gender: st.gender, race: race, job: job || "", keep: RoKeepPref() }));
         });
       }
+      if (st.mode === "preset") { startVoiceWatch(""); st.faceFirst = true; toConfirm(); return; }   // 기본 캐릭터 = 목소리도 기본, 바로 기본 얼굴 고르기
+      if (st.mode === "custom") { recordVoice(); return; }   // 나만의 캐릭터 = 사진 다음 바로 녹음
       askVoice();
+    };
+    // 나만의 캐릭터 — 목소리 물음 없이 녹음 카드로(녹음 카드의 건너뛰기는 그대로 = 기본 목소리). 뒤로가기 = 얼굴 사진
+    var recordVoice = function () {
+      if (svcOff.voice) { startVoiceWatch(""); showPrologue(); return; }
+      c = RoCard(0); c.wrap.remove();
+      RoVoiceStep(st.base, st.name, function (v) { startVoiceWatch(v); showPrologue(); }, st.gender, { recordOnly: true, step: 6, total: 7, race: st.race, onBack: function () { c = RoCard(0); voiceBack(); } });
     };
     // 5 목소리는 선택(2026-11-11 사용자 "구구절절 글 많이 넣지 말자, 할 사람만 하게" — 사운드 세션 전달) — 짧게 묻고 [녹음하기] = 녹음 카드, [건너뛰기] = 녹음 카드의 건너뜀과 같은 "" 로 바로 프롤로그.
     //   사진을 넣었든 사진 없이 왔든 같은 물음(어느 쪽이든 목소리는 따로 고르는 것이라)
@@ -3479,7 +3546,8 @@ mergeInto(LibraryManager.library, {
       if (window.ResizeObserver) { var floorRo = new ResizeObserver(fitFloor); floorRo.observe(large); floorRo.observe(bigView); }
       requestAnimationFrame(fitFloor);
       var generatedLabel = document.createElement("div"); generatedLabel.className = "ro-face-section"; generatedLabel.textContent = "생성한 얼굴";
-      if (!presetOnly) c.card.appendChild(generatedLabel);   // 사진 없이 진행이면 생성 얼굴 줄을 안 보인다
+      var pickless = st.mode === "custom" && !presetOnly;   // 나만의 캐릭터 = 생성 결과를 고르지 않고 그대로 적용(2026-11-21 사용자 결정, 애니 세션 안내) — 후보 줄을 숨기고 첫 결과(sel = ok[0])
+      if (!presetOnly && !pickless) c.card.appendChild(generatedLabel);   // 사진 없이 진행이면 생성 얼굴 줄을 안 보인다
       var row = document.createElement("div"); row.className = "ro-face-grid";
       var tiles = [], presetTiles = [], sheets = {}, images = [];
       var key = function () { return presetSel || String(sel); };
@@ -3561,7 +3629,7 @@ mergeInto(LibraryManager.library, {
       });
       // 생성 얼굴이 2장(2026-11-09)이면 기본 템플릿 3칸과 같은 칸 크기로 가운데 정렬
       if (ok.length && ok.length < 3) { row.style.gridTemplateColumns = "repeat(" + ok.length + ",calc((100% - 14px) / 3))"; row.style.justifyContent = "center"; }
-      if (!presetOnly) c.card.appendChild(row);
+      if (!presetOnly && !pickless) c.card.appendChild(row);
       // '기본 얼굴' 소제목은 뺐다(2026-11-16 사용자)   // 2026-11-10 생성 얼굴이 있으면 기본 얼굴 줄은 안 보인다
       var presetRow = document.createElement("div"); presetRow.className = "ro-face-grid";
       var presetIcons = function (skin) { return "TemplateData/ro-onboarding/preset_face/" + skin + ".webp"; };   // 기본 얼굴 그림 12장(2026-11-20 — 예전엔 base64 1.3MB 를 이 줄에 박아 엔진 framework 파일이 1MB 커졌다, 이제 고른 종족·성별 3장만 받음)
