@@ -2627,10 +2627,14 @@ mergeInto(LibraryManager.library, {
       };
       st.up = getBase().then(function (b) {
         base = b;
-        return shrink(file).then(function (blob) {
+        // 나만의 캐릭터 의상(2026-11-21) — 의상 사진이 있으면 얼굴 사진 뒤에 이어 붙이고 olen(끝 바이트 수)·memo 로 알린다. 서버가 얼굴·의상을 한 장으로 만든다
+        var outfit = st.outfit && st.outfit.file ? st.outfit : null;
+        return Promise.all([shrink(file), outfit ? shrink(outfit.file) : null]).then(function (blobs) {
           if (stale()) return null;
-          sent = blob;
-          startUrl = b + "/face/start?race=" + race + "&gender=" + gender + "&detail=" + detail + (acc ? "&acc=" + acc : "");
+          var blob = blobs[0], ob = blobs[1];
+          sent = ob ? new Blob([blob, ob], { type: blob.type || "image/jpeg" }) : blob;
+          startUrl = b + "/face/start?race=" + race + "&gender=" + gender + "&detail=" + detail + (acc ? "&acc=" + acc : "") +
+            (ob ? "&olen=" + ob.size + (outfit.memo ? "&memo=" + encodeURIComponent(outfit.memo.slice(0, 60)) : "") : "");
           return post();
         });
       }).then(take).then(function (job) {
@@ -2965,7 +2969,7 @@ mergeInto(LibraryManager.library, {
 
     // ── 나만의 캐릭터: 얼굴 사진 다음 의상 사진(2026-11-21 사용자 확정, 애니 세션 안내) — 옷 사진 한 장 + 글 메모(선택), 건너뛰면 기본 의상.
     //   얼굴·의상 두 장으로 시트 한 장을 만드니 얼굴 생성은 여기서(다음 또는 건너뛰기) 한 번에 요청한다.
-    //   ★의상 서버·필드 이름은 아직 없다 — 지금은 st.outfit {file, memo} 에 잡아 두기만 하고 얼굴만 올린다(서버가 정해지면 upload 에서 같이 보낸다)
+    //   st.outfit {file, memo} 는 upload 가 얼굴 사진 뒤에 이어 붙여 /face/start 에 같이 보낸다(olen·memo, 2026-11-21 서버 연결)
     var showOutfit = function () {
       stopCam();
       c = RoCard(0);
