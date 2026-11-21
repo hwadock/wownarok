@@ -1576,6 +1576,7 @@ mergeInto(LibraryManager.library, {
       pre.hand(function (o, m, a) { SendMessage(o, m, a); });
       if (keepPre) return;
     }
+    if (window.__roInWorld) window.__roLateOk = 0;   // 월드에 들어갔다가 로그인 카드로 돌아옴 — 새 캐릭터 바로 접속의 늦은 얼굴·목소리를 더 보내지 않는다(2026-11-21)
     RoEntryUI().cancel();
     RoEntryUI().setRacePreview(false);
     SendMessage("NetSession", "OnHtmlRacePreviewReset", "");
@@ -2559,21 +2560,7 @@ mergeInto(LibraryManager.library, {
       var prefix = "head_" + (st.gender === 1 ? "female" : "male") + "_" + (st.race === 1 ? "orc" : "human") + "_";
       return [prefix + "00", prefix + "01", prefix + "02"];
     };
-    var presetUrl = function (skin, percent) {
-      return st.base + "/face/preview?race=" + st.race + "&gender=" + st.gender + "&preset=" + encodeURIComponent(skin) + "&headScale=" + (percent / 100).toFixed(2);
-    };
     var preCache = {};   // 주소 → Promise<객체 URL | "">
-    var prefetchPresets = function () {
-      if (st.race !== 0 && st.race !== 1) return;
-      getBase().then(function () {
-        presetHeads().forEach(function (skin) {
-          var url = presetUrl(skin, 100);
-          if (preCache[url]) return;
-          preCache[url] = fetch(url, { cache: "no-store" }).then(function (r) { if (!r.ok) throw new Error("preview " + r.status); return r.blob(); })
-            .then(function (b) { return URL.createObjectURL(b); }, function (e) { console.warn("[얼굴] 기본 얼굴 미리 받기 실패", e); delete preCache[url]; return ""; });
-        });
-      }, function () {});
-    };
     var uploadEpoch = 0, uploadAbort = null;
     var discardJob = function (job) {
       if (job && st.base) fetch(st.base + "/face/discard?job=" + encodeURIComponent(job), { method: "POST" }).catch(function () {});
@@ -2722,18 +2709,18 @@ mergeInto(LibraryManager.library, {
       if (svcOff.face) { stopCam(); invalidatePhoto(); st.noPhoto = true; st.photoNotice = ""; afterPhoto(); return; }   // 얼굴 만들기 꺼짐 = '기본 얼굴로'를 누른 것과 같은 길
       stopCam();
       // 2026-11-21 사용자 "얼굴·사운드를 나눠 물었는데 통합 — 나만의 캐릭터 or 기본 캐릭터, 버튼 두 개로" — 나만의 = 얼굴 사진 → 바로 녹음(목소리 물음 없음),
-      //   기본 = 사진·녹음 없이 기본 얼굴 고르기로(예전 '기본 얼굴로' + '기본 목소리로'를 한 번에)
+      //   기본 = 사진·녹음 없이 기본 얼굴 고르기로(예전 '기본 얼굴로' + '기본 목소리로'를 한 번에) → 2026-11-21 '랜덤 캐릭터' = 기본 머리 셋 중 무작위, 고르기 화면 없음
       st.mode = null;
       c.card.innerHTML = c.raceShell(5, "어떻게 만들까요?", "", 7);
       c.anim();
       var make = c.mainBtn("나만의 캐릭터"); make.type = "button"; make.classList.add("ro-race-next");
       make.onclick = function () { st.mode = "custom"; showPhoto(); };
-      var no = c.defaultFaceBtn("기본 캐릭터"); no.classList.add("ro-face-ask-skip");
+      var no = c.defaultFaceBtn("랜덤 캐릭터"); no.classList.add("ro-face-ask-skip");
       no.onclick = function () { st.mode = "preset"; invalidatePhoto(); st.noPhoto = true; st.photoNotice = ""; afterPhoto(); };
       askTiles([[make, "<rect x='6' y='16' width='52' height='38' rx='7'/><path d='M22 16 l5 -7 h10 l5 7'/><circle cx='32' cy='35' r='10'/>", "나만의<br>캐릭터"],
-                [no, "<circle cx='32' cy='32' r='24'/><circle cx='24' cy='28' r='2.5' fill='currentColor'/><circle cx='40' cy='28' r='2.5' fill='currentColor'/><path d='M22 40 q10 9 20 0'/>", "기본<br>캐릭터"]]);
+                [no, "<circle cx='32' cy='32' r='24'/><circle cx='24' cy='28' r='2.5' fill='currentColor'/><circle cx='40' cy='28' r='2.5' fill='currentColor'/><path d='M22 40 q10 9 20 0'/>", "랜덤<br>캐릭터"]]);
       c.card.appendChild(c.stepBack(showPin));   // 뒤로가기 = 3 비밀번호
-      serviceDown("face", make, c.card, "나만의 캐릭터 만들기가 잠시 멈췄어요 · 기본 캐릭터로 시작해 주세요");
+      serviceDown("face", make, c.card, "나만의 캐릭터 만들기가 잠시 멈췄어요 · 랜덤 캐릭터로 시작해 주세요");
     };
     showPhoto = function () {
       stopCam();
@@ -2968,7 +2955,8 @@ mergeInto(LibraryManager.library, {
     };
 
     // ── 나만의 캐릭터: 얼굴 사진 다음 의상 사진(2026-11-21 사용자 확정, 애니 세션 안내) — 옷 사진 한 장 + 글 메모(선택), 건너뛰면 기본 의상.
-    //   얼굴·의상 두 장으로 시트 한 장을 만드니 얼굴 생성은 여기서(다음 또는 건너뛰기) 한 번에 요청한다.
+    //   얼굴·의상 두 장으로 시트 한 장을 만드니 얼굴 생성은 여기서(옷 사진을 넣는 순간 또는 건너뛰기) 한 번에 요청한다.
+    //   2026-11-21 사용자 "의상 사진 넣으면 바로 넘어가자, 다음 버튼 필요 없다" — 찍거나 고르면 곧바로 목소리 녹음으로. 메모는 사진 앞에 적게 버튼 위로 올림
     //   st.outfit {file, memo} 는 upload 가 얼굴 사진 뒤에 이어 붙여 /face/start 에 같이 보낸다(olen·memo, 2026-11-21 서버 연결)
     var showOutfit = function () {
       stopCam();
@@ -2986,12 +2974,11 @@ mergeInto(LibraryManager.library, {
           : "<svg width='64' height='64' viewBox='0 0 64 64' fill='none' stroke='var(--ro-ui-edge,#C9963F)' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'>" +
             "<path d='M22 8 l-14 8 l5 12 l6 -3 v31 h26 v-31 l6 3 l5 -12 l-14 -8 q-5 6 -10 6 q-5 0 -10 -6 z'/></svg>" +
             "<span style='font-size:16px;font-weight:700'>옷 전체가 잘 보이면 좋아요</span>";
-        next.style.display = o.file ? "" : "none";
       };
       var mk = function (capture) {
         var i = document.createElement("input"); i.type = "file"; i.accept = "image/*"; i.style.display = "none";
         if (capture) i.setAttribute("capture", "environment");   // 휴대폰 = 뒤 카메라(옷을 찍는다)
-        i.onchange = function () { if (!i.isConnected) return; var f = i.files && i.files[0]; if (f) { o.file = f; st.outfit = o; paint(); } };
+        i.onchange = function () { if (!i.isConnected) return; var f = i.files && i.files[0]; if (f) { o.file = f; o.memo = memo.value; st.outfit = o; paint(); go(true); } };   // 넣자마자 다음(목소리 녹음)
         c.card.appendChild(i); return i;
       };
       var fileIn = mk(false), camIn = mk(true);
@@ -3001,7 +2988,7 @@ mergeInto(LibraryManager.library, {
       });
       var memo = document.createElement("input"); memo.type = "text"; memo.maxLength = 60; memo.value = o.memo || "";
       memo.placeholder = "원하는 느낌을 적어도 돼요 (선택)";
-      memo.style.cssText = "box-sizing:border-box;width:100%;margin-top:12px;padding:10px 12px;font:inherit;font-size:16px;color:#fff1cd;background:#2a1a11;border:2px solid #a76c3b;border-radius:12px;outline:none";
+      memo.style.cssText = "box-sizing:border-box;width:100%;margin-top:10px;padding:10px 12px;font:inherit;font-size:16px;color:#fff1cd;background:#2a1a11;border:2px solid #a76c3b;border-radius:12px;outline:none";
       memo.oninput = function () { o.memo = memo.value; st.outfit = o; };
       var go = function (useOutfit) {   // 얼굴 사진 + (의상) → 한 번에 생성 요청 → 녹음
         st.outfit = useOutfit && o.file ? { file: o.file, memo: (o.memo || "").trim() } : null;
@@ -3010,14 +2997,13 @@ mergeInto(LibraryManager.library, {
         startFaceProgress();
         afterPhoto();
       };
-      var next = c.mainBtn("다음"); next.style.marginTop = "12px"; next.onclick = function () { go(true); };
       var skip = c.mainBtn("의상 사진 없이 진행");
       skip.classList.remove("ro-race-next");
       skip.style.cssText += ";margin-top:10px;font-size:16px;background:rgba(201,150,63,.12);color:#EBDDBC;clip-path:none;border:2px solid #C9963F;border-radius:12px;box-shadow:none;opacity:1";
       skip.onclick = function () { go(false); };
       var skipHint = document.createElement("div"); skipHint.textContent = "기본 의상 그대로 입어요";
       skipHint.style.cssText = "color:#EBDDBC;opacity:.7;font-size:12px;text-align:center;margin-top:4px";
-      c.card.appendChild(box); c.card.appendChild(row); c.card.appendChild(memo); c.card.appendChild(next); c.card.appendChild(skip); c.card.appendChild(skipHint);
+      c.card.appendChild(box); c.card.appendChild(memo); c.card.appendChild(row); c.card.appendChild(skip); c.card.appendChild(skipHint);
       c.card.appendChild(c.stepBack(function () { showPhoto(); }));   // 뒤로가기 = 얼굴 사진
       paint();
     };
@@ -3026,7 +3012,6 @@ mergeInto(LibraryManager.library, {
     showName = function () {
       c.wrap.classList.remove("ro-race-card");
       c.card.innerHTML = c.raceShell(3, "당신의 이름은?", "모험에서 불릴 이름을 정해 주세요", 7);
-      prefetchPresets();
       c.anim();
       var err = c.errLine();
       var inp, checking = false;
@@ -3130,7 +3115,7 @@ mergeInto(LibraryManager.library, {
           window.__roSttAuth = { n: st.name, p: st.pin }; SendMessage("NetSession", "OnHtmlNewStart", JSON.stringify({ name: st.name, pin: st.pin, gender: st.gender, race: race, job: job || "", keep: RoKeepPref() }));
         });
       }
-      if (st.mode === "preset") { startVoiceWatch(""); st.faceFirst = true; toConfirm(); return; }   // 기본 캐릭터 = 목소리도 기본, 바로 기본 얼굴 고르기
+      if (st.mode === "preset") { startVoiceWatch(""); st.faceFirst = true; toConfirm(); return; }   // 랜덤 캐릭터 = 목소리도 기본, 프롤로그 뒤 무작위 머리로 바로 접속
       if (st.mode === "custom") { recordVoice(); return; }   // 나만의 캐릭터 = 사진 다음 바로 녹음
       askVoice();
     };
@@ -3174,11 +3159,11 @@ mergeInto(LibraryManager.library, {
     // 6 프롤로그 → 7 확인. 사진이 있으면 생성 진행(wait)부터, 없으면 바로 기본 얼굴 확인
     var showPrologue = function () {
       entry.hideBusy();
-      st.prologueStop = RoPrologue(st.race, function () { st.prologueStop = null; toConfirm(); });
+      st.prologueStop = RoPrologue(st.race, function () { st.prologueStop = null; st.prologueSeen = true; toConfirm(); });
     };
     var toConfirm = function () {
-      if (st.up && !st.noPhoto) { wait(); return; }
-      getBase().then(function () { choose("", []); }, function (e) { console.warn("[얼굴] 서버 주소 실패", e); choose("", []); });
+      if (st.up && !st.noPhoto) { autoEnter(); return; }   // 2026-11-21 기획 확정 — 사진을 넣었으면 고르기 없이 바로 접속(생성 얼굴은 접속 뒤에 끼움)
+      getBase().then(function () { randomEnter(); }, function (e) { console.warn("[얼굴] 서버 주소 실패", e); randomEnter(); });
     };
 
     // ── 2 성별 ──
@@ -3186,10 +3171,9 @@ mergeInto(LibraryManager.library, {
       c.wrap.classList.remove("ro-race-card");
       c.card.innerHTML = c.raceShell(2, "성별 선택", "모험가의 모습을 골라 주세요", 7); c.wrap.classList.add("ro-race-wide");
       c.anim();
-      prefetchPresets();
       c.card.appendChild(c.genderTiles(function () { return st.gender; }, function (v) {
         if (v !== st.gender && (st.up || st.thumb)) { invalidatePhoto(); st.photoNotice = "성별을 바꿨습니다. 사진을 다시 선택해 주세요."; }
-        st.gender = v; prefetchPresets();
+        st.gender = v;
       }, st.race === 1));
       var next = c.mainBtn("다음");
       next.classList.add("ro-race-next");
@@ -3268,7 +3252,7 @@ mergeInto(LibraryManager.library, {
       completionTimer = setTimeout(function () {
         completionTimer = null;
         if (run !== progressRun || !waiting || result !== readyResult) return;
-        waiting = false; choose(readyResult.job, readyResult.ok);
+        waiting = false; autoEnter();   // 예전 고르기 화면 대신 바로 접속(2026-11-21 미리보기 폐기)
       }, 700);
     };
     var startFaceProgress = function () {
@@ -3382,7 +3366,7 @@ mergeInto(LibraryManager.library, {
       clearFaceProgress();
       if (st.thumb) URL.revokeObjectURL(st.thumb); st.thumb = null;
       if (!st.newStart) { st.newStart = Promise.resolve(); window.__roSttAuth = { n: st.name, p: st.pin }; SendMessage("NetSession", "OnHtmlNewStart", JSON.stringify({ name: st.name, pin: st.pin, gender: st.gender, race: st.race, job: "", keep: RoKeepPref() })); }
-      choose("", []);
+      randomEnter();   // 미리보기 폐기(2026-11-21) — 기본 머리 셋 중 무작위로 바로
     };
 
     // 녹음한 목소리 작업 지켜보기(2026-11-10) — 녹음 직후부터(프롤로그 동안) 1.5초마다 /voice/status, 확인 화면이 voiceUi 로 그린다.
@@ -3512,274 +3496,132 @@ mergeInto(LibraryManager.library, {
         }).catch(function (e) { clearTimeout(t); console.warn("[목소리] 고르기 실패 — 기본 목소리로", e); discardVoice(); send(""); });
     };
 
-    // 실제 Unity 몸/슬롯으로 합성한 8칸 시트만 사용한다. 원본 5방향 얼굴 시트는 노출하지 않는다.
-    var choose = function (job, ok) {
-      clearFaceProgress();
-      if (disposePreview) disposePreview();
-      c = RoCard(0);
-      c.card.innerHTML = c.raceShell(7, "얼굴·보이스 확인", "", 7);
-      c.wrap.classList.add("ro-face-select");
-      // 7 확인 한 화면(2026-11-10) — 사진으로 왔으면 생성 얼굴만, 사진 없이 왔으면 기본 얼굴만 + 목소리 듣기
-      c.card.firstElementChild.innerHTML = "<div style='text-align:center;color:#f3ca73;font-weight:800;letter-spacing:.12em;font-size:12px'>◆　7 / 7　◆</div><h1>얼굴·보이스 확인</h1>";   // 아래 설명 줄은 뺐다(2026-11-16 사용자)
-      var sel = ok[0], presetSel = null, presetOnly = !ok.length, frame = 0, alive = true, timer = null, scaleTimer = null, headPercent = 100;
-      var large = document.createElement("div"); large.id = "ro-character-preview";
-      // 미리보기 칸 배경 = 진영 그림(2026-11-10 사용자 시안 인간 2 훈련장 / 오크 2 협곡 투기장, GPT 2.6 Concept/ui/preview_bg), 아래·가장자리만 살짝 어둡게 해 글이 읽히게
-      //   2026-11-11 사용자 "땅 위치가 안 맞는다, 중앙에" — 그림을 칸 높이의 150% 로 키우고 위 10% 자리에 둬 투기장·훈련장 바닥 원 가운데(그림 세로 약 54.5%)가 캐릭터 발(칸 세로 약 77%)에 오게. 높이 기준이라 칸 가로세로 비율이 달라도 같은 자리
-      large.style.cssText = "width:50%;display:flex;flex-direction:column;align-items:center;color:#EBDDBC;border:1px solid var(--ro-ui-edge,#C9963F);border-radius:12px;background:radial-gradient(ellipse at 50% 95%,#0000,#0006 70%),linear-gradient(#0000 70%,#000a),url('TemplateData/ro-onboarding/race/preview_bg_" + (st.race === 1 ? "orc" : "human") + ".webp') center 10%/auto 150% no-repeat,#241a16;padding:4px;box-sizing:border-box;text-shadow:0 1px 2px #000";
-      var bigView = document.createElement("div");
-      bigView.setAttribute("role", "img"); bigView.setAttribute("aria-label", "선택한 얼굴과 몸의 8방향 회전 미리보기");
-      // 2026-11-11 사용자 "아이폰에서 찌부러져 보인다"(폴드는 정상) — aspect-ratio 로 폭을 얻던 것을 높이·폭 둘 다 정해 2:3(그림 한 칸 256×384) 고정, 줄어들지 않게 flex:none
-      bigView.style.cssText = "flex:none;height:clamp(105px,19vh,160px);width:calc(clamp(105px,19vh,160px) * 2 / 3);background-size:800% 100%;background-repeat:no-repeat";
-      var previewStatus = document.createElement("div"); previewStatus.style.cssText = "font-size:11px;min-height:10px;line-height:10px;text-align:center";
-      previewStatus.textContent = "전신 미리보기를 준비하는 중…";
-      // 발밑 둥근 그림자(2026-11-16 사용자 "그림자가 없으니 심심하다") — 미리보기 칸(256×384)에서 발 끝이 세로 88%·가로 가운데라 그 자리에 깔고, 캐릭터는 그 위에
-      var stage = document.createElement("div"); stage.style.cssText = "flex:none;position:relative";
-      var footShadow = document.createElement("div");
-      footShadow.style.cssText = "position:absolute;left:50%;top:87%;width:54%;height:10%;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(closest-side,#000d,#0008 55%,#0000);pointer-events:none";
-      bigView.style.position = "relative"; bigView.style.zIndex = "1";
-      stage.appendChild(footShadow); stage.appendChild(bigView);
-      large.appendChild(stage); large.appendChild(previewStatus); /* Preview is placed below both face rows. */
-      // 2026-11-18 사용자 "일정 해상도 이하가 되면 바닥이 벗어나네" — 배경은 칸 높이 기준(150%·위 10%)인데 캐릭터는 clamp(105~160px)라 화면이 작으면 둘이 다르게 줄어
-      //   발이 투기장·훈련장 바닥 원(그림 세로 54.5%)에서 벗어났다. 발 그림자 가운데(캐릭터 칸 87%)를 재서 바닥 원 가운데가 오게 그림 세로 자리를 맞춘다(크기 바뀔 때마다)
-      var fitFloor = function () {
-        var lr = large.getBoundingClientRect(), vr = bigView.getBoundingClientRect();
-        if (!lr.height || !vr.height) return;
-        var bgH = lr.height * 1.5, feetY = vr.top - lr.top + vr.height * 0.87;
-        large.style.backgroundPosition = "0 0, 0 0, center " + Math.round(feetY - bgH * 0.545) + "px";
-      };
-      if (window.ResizeObserver) { var floorRo = new ResizeObserver(fitFloor); floorRo.observe(large); floorRo.observe(bigView); }
-      requestAnimationFrame(fitFloor);
-      var generatedLabel = document.createElement("div"); generatedLabel.className = "ro-face-section"; generatedLabel.textContent = "생성한 얼굴";
-      var pickless = st.mode === "custom" && !presetOnly;   // 나만의 캐릭터 = 생성 결과를 고르지 않고 그대로 적용(2026-11-21 사용자 결정, 애니 세션 안내) — 후보 줄을 숨기고 첫 결과(sel = ok[0])
-      if (!presetOnly && !pickless) c.card.appendChild(generatedLabel);   // 사진 없이 진행이면 생성 얼굴 줄을 안 보인다
-      var row = document.createElement("div"); row.className = "ro-face-grid";
-      var tiles = [], presetTiles = [], sheets = {}, images = [];
-      var key = function () { return presetSel || String(sel); };
-      var urlFor = function (id) {
-        if (typeof id === "string" && id.indexOf("head_") === 0) return presetUrl(id, headPercent);
-        return st.base + "/face/preview?race=" + st.race + "&gender=" + st.gender + "&job=" + encodeURIComponent(job) + "&i=" + id + "&headScale=" + (headPercent / 100).toFixed(2);
-      };
-      var paint = function () {
-        if (!alive) return;
-        tiles.forEach(function (t) { var on = !presetSel && t.candidate === sel; t.style.borderColor = on ? "#F2C77A" : "#5a4636"; t.setAttribute("aria-pressed", on ? "true" : "false"); });
-        presetTiles.forEach(function (t) { var on = t.preset === presetSel; t.style.borderColor = on ? "#F2C77A" : "#5a4636"; t.setAttribute("aria-pressed", on ? "true" : "false"); });
-        var sheet = sheets[key()];
-        bigView.style.backgroundImage = sheet && sheet.ready && sheet.scale === headPercent ? 'url("' + sheet.url + '")' : "none";
-        previewStatus.textContent = sheet && sheet.ready && sheet.scale === headPercent ? "" : sheet && sheet.failed ? "미리보기를 불러오지 못했습니다. 다시 시도해 주세요" : "전신 미리보기를 준비하는 중…";
-        if (go) go.disabled = !presetSel && (!sheet || !sheet.ready || sheet.scale !== headPercent);   // 기본 얼굴은 미리보기 없이도 시작
-      };
-      var load = function (id) {
-        var k = String(id), url = urlFor(id), image = new Image();
-        var item = sheets[k] = { url: url, ready: false, failed: false, scale: headPercent };
-        var timeout = setTimeout(function () { if (!alive || item.ready || sheets[k] !== item) return; item.failed = true; paint(); }, 15000);
-        images.push({ image: image, timeout: timeout });
-        image.onload = function () {
-          clearTimeout(timeout); if (!alive || sheets[k] !== item) return;
-          if (image.naturalWidth !== 2048 || image.naturalHeight !== 384) { image.onerror(); return; }
-          item.ready = true; item.failed = false;
-          paint();
+    // ── 바로 접속(2026-11-21 기획 세션 plan_intro_raid 1절, 사용자 확정) — 사진(·목소리)을 넣었으면 프롤로그 뒤 대기·고르기 없이 기본 얼굴로 바로 접속하고
+    //   (NetSession.OnHtmlFacePending("1") → OnHtmlFace("")), 게임 안에서도 /face/status(1초)·/voice/status(1.5초)를 계속 묻는다.
+    //   얼굴 1장째가 나오면 바로 /face/pick → NetSession.OnHtmlFaceLate(번호) — 게임은 첫 입장 연출(기획)이 마법진에서 FacePending 이 풀리길 기다린다.
+    //   실패(올리기 실패·후보 0·시한 넘김)면 게임 화면 위에 고르기 창(기본 얼굴로 / 사진 다시). 크레딧 소진(503)·거듭 실패(2번)는 묻지 않고 기본 얼굴.
+    //   목소리는 끝나는 대로 /voice/pick → OnHtmlVoice(번호), 실패면 기본 목소리 그대로. 랜덤 캐릭터(사진 없음)는 randomEnter(확인 화면 없음).
+    var autoRun = 0;
+    var autoEnter = function () {
+      var vo = st.voice; voiceUi = null; stopVoiceWatch();
+      entry.busy("캐릭터를 준비하고 있습니다");
+      (st.newStart || Promise.resolve()).then(function () {
+        SendMessage("NetSession", "OnHtmlFacePending", "1");
+        SendMessage("NetSession", "OnHtmlVoice", "");   // 목소리는 끝나면 따로 보낸다(그전까진 기본)
+        SendMessage("NetSession", "OnHtmlHeadScale", "100");
+        releaseOnboarding();   // 접속(월드 열기) 직전 — 흐름이 쥔 그림·소리·카메라를 놓는다(얼굴 진행 묻기도 멈추므로 아래에서 새로)
+        entry.cleanup = null;   // 월드가 열리면 entry.ready → cancel → cleanup 이 얼굴·목소리 작업을 버린다 — 이제 접속 뒤에 끝내야 하므로 떼어 둔다
+        window.__roLateOk = 1;   // 로그인 카드가 다시 열리면(나감·접속 실패) 0 — 늦게 온 얼굴·목소리를 다른 계정에 보내지 않게
+        SendMessage("NetSession", "OnHtmlFace", "");
+        autoFace(); autoVoice(vo);
+      });
+    };
+    var autoLate = function (face) { if (!window.__roLateOk) return; try { SendMessage("NetSession", "OnHtmlFaceLate", face || ""); } catch (e) { console.warn("[얼굴] 끼우기 보내기 실패", e); } };
+    var autoFace = function () {
+      var run = ++autoRun, up = st.up;
+      if (!up) { autoFail(); return; }
+      up.then(function (job) {
+        if (run !== autoRun) return;
+        if (!job) { autoFail(); return; }
+        var t0 = Date.now(), errors = 0;
+        var poll = function () {
+          if (run !== autoRun) return;
+          var ac = new AbortController(), to = setTimeout(function () { ac.abort(); }, 12000);
+          fetch(st.base + "/face/status?job=" + encodeURIComponent(job), { cache: "no-store", signal: ac.signal })
+            .then(function (r) { clearTimeout(to); if (!r.ok) throw new Error("status " + r.status); return r.json(); })
+            .then(function (s) {
+              if (run !== autoRun) return;
+              errors = 0;
+              var done = s.done || [], failed = s.fail || [], n = Math.max(done.length, failed.length), over = n > 0, first = -1;
+              for (var i = 0; i < n; i++) { if (done[i]) { if (first < 0) first = i; } else if (!failed[i]) over = false; }
+              var expired = (Date.now() - t0) / 1000 > Math.max(120, (s.expect || 20) * 6);
+              if (first >= 0) autoPick(run, job, first, 0);   // 생성 1장째 그대로(고르기 없음)
+              else if (over || expired) autoFail();
+              else setTimeout(poll, 1000);
+            }).catch(function (e) {
+              clearTimeout(to);
+              if (run !== autoRun) return;
+              if (++errors > 15) { console.warn("[얼굴] 진행 확인 실패", e); autoFail(); return; }
+              setTimeout(poll, 2000);
+            });
         };
-        image.onerror = function () { clearTimeout(timeout); if (!alive || sheets[k] !== item) return; item.failed = true; paint(); };
-        if (preCache[url]) preCache[url].then(function (obj) { if (!alive || sheets[k] !== item) return; if (obj) item.url = obj; image.src = obj || url; });   // 미리 받은 그림(실패면 원래 주소) — 큰 미리보기 배경도 같은 객체 URL 을 써야 다시 받지 않는다
-        else image.src = url;
-      };
-      var faceButton = function (label, src) {
-        var button = document.createElement("button"); button.type = "button";
-        button.style.cssText = "flex:1;min-width:0;aspect-ratio:1;position:relative;padding:3px;border:3px solid #5a4636;border-radius:8px;background:#3d2b20;color:#EBDDBC;cursor:pointer;overflow:hidden";
-        button.classList.add("ro-face-tile"); button.setAttribute("aria-label", label);
-        var face = document.createElement("img"); face.alt = label;
-        face.style.cssText = "display:block;width:100%;height:100%;object-fit:contain";
-        // 얼굴 서버 그림은 다른 주소라, 읽기 허락 모드로 받아야 아래 턱 재기가 된다(서버는 Access-Control-Allow-Origin * 를 준다). 못 읽으면 그림 아랫끝을 턱으로 봐서
-        //   너무 올라갔다(2026-11-09 사용자 "내 사진으로 생성한 얼굴은 기본 프리셋보다 얼굴 위치가 높다")
-        if (!/^data:/.test(src)) face.crossOrigin = "anonymous";
-        face.src = src;
-        var badge = document.createElement("span"); badge.textContent = label; badge.hidden = false;
-        badge.style.cssText = "position:absolute;left:0;right:0;bottom:0;font-size:11px;padding:2px;background:#241a16bb";
-        button.appendChild(face); button.appendChild(badge);
-        // 아래 이름 띠가 입·턱을 가렸다 — 그림이 뜨면 턱(그림 알파 아랫끝)을 재서 턱이 띠 윗선에 딱 닿게 올린다
-        //   (2026-11-09 사용자 "얼굴 좀 올리자" → "너무 올라갔다, 턱이 딱 이름 위쪽 끝에 걸릴 정도로"). 칸 모양마다 턱 자리가 달라 고정값으로는 안 맞았다
-        var fitChin = function () {
-          try {
-            var nw = face.naturalWidth, nh = face.naturalHeight; if (!nw || !face.offsetHeight) return;
-            face.style.transform = "";
-            var bottom = nh;
-            try {   // 다른 주소 그림이라 읽지 못하면 그림 아랫끝을 턱으로 본다
-              var k = Math.min(1, 160 / nh), cv = document.createElement("canvas");
-              cv.width = Math.max(1, Math.round(nw * k)); cv.height = Math.max(1, Math.round(nh * k));
-              var g = cv.getContext("2d"); g.drawImage(face, 0, 0, cv.width, cv.height);
-              var d = g.getImageData(0, 0, cv.width, cv.height).data;
-              find: for (var y = cv.height - 1; y >= 0; y--) for (var x = 0; x < cv.width; x++) if (d[(y * cv.width + x) * 4 + 3] > 40) { bottom = (y + 1) / k; break find; }
-            } catch (_) {}
-            var ir = face.getBoundingClientRect(), br = badge.getBoundingClientRect(), zoom = ir.height / face.offsetHeight || 1;
-            var sc = Math.min(ir.width / nw, ir.height / nh), top = ir.top + (ir.height - nh * sc) / 2;
-            var lift = (top + bottom * sc - br.top) / zoom;
-            if (lift > 0.5) face.style.transform = "translateY(-" + lift.toFixed(1) + "px)";
-          } catch (_) {}
-        };
-        face.addEventListener("load", function () { fitChin(); setTimeout(fitChin, 250); });
-        button.fitChin = fitChin;
-        return button;
-      };
-      var selectPreview = function (id) {
-        var item = sheets[String(id)];
-        if (!item || item.failed || item.scale !== headPercent) load(id);
-        paint();
-      };
-      ok.forEach(function (id) {
-        var button = faceButton("얼굴 후보 " + (id + 1), st.base + "/face/job/" + encodeURIComponent(job) + "/" + id + "_ff.png");
-        button.className = "ro-candidate-face"; button.candidate = id;
-        button.onclick = function () { sel = id; presetSel = null; selectPreview(id); };
-        tiles.push(button); row.appendChild(button);
+        poll();
       });
-      // 생성 얼굴이 2장(2026-11-09)이면 기본 템플릿 3칸과 같은 칸 크기로 가운데 정렬
-      if (ok.length && ok.length < 3) { row.style.gridTemplateColumns = "repeat(" + ok.length + ",calc((100% - 14px) / 3))"; row.style.justifyContent = "center"; }
-      if (!presetOnly && !pickless) c.card.appendChild(row);
-      // '기본 얼굴' 소제목은 뺐다(2026-11-16 사용자)   // 2026-11-10 생성 얼굴이 있으면 기본 얼굴 줄은 안 보인다
-      var presetRow = document.createElement("div"); presetRow.className = "ro-face-grid";
-      var presetIcons = function (skin) { return "TemplateData/ro-onboarding/preset_face/" + skin + ".webp"; };   // 기본 얼굴 그림 12장(2026-11-20 — 예전엔 base64 1.3MB 를 이 줄에 박아 엔진 framework 파일이 1MB 커졌다, 이제 고른 종족·성별 3장만 받음)
-      var heads = presetHeads();
-      heads.forEach(function (skin, i) {
-        var button = faceButton("기본" + (i + 1), presetIcons(skin));
-        button.className = "ro-preset-face"; button.preset = skin;
-        // 기본 얼굴 그림은 256 칸을 머리가 꽉 채워 생성 얼굴보다 크게 보였다(2026-11-07 사용자) — 줄여서 이름 띠 위 가운데에
-        button.firstChild.style.cssText = "display:block;width:74%;height:74%;margin:3% auto 0;object-fit:contain";
-        setTimeout(button.fitChin, 60);   // 데이터 그림이라 load 가 이 줄보다 먼저 끝났을 수 있다
-        button.onclick = function () { presetSel = skin; selectPreview(skin); };
-        presetTiles.push(button); presetRow.appendChild(button);
-      });
-      if (presetOnly) c.card.appendChild(presetRow);
-      c.card.appendChild(large);
-      // 머리 크기 — 끌어 맞추는 슬라이더 대신 100/110/120% 세 칸 중 하나만 고른다(2026-11-08 사용자 "100 110 120 이렇게 3개만", 그 전엔 네 칸).
-      var scaleLabel = document.createElement("div");
-      scaleLabel.style.cssText = "display:block;color:#EBDDBC;font-size:13px;margin-top:8px";
-      var scaleText = document.createElement("span"); scaleText.textContent = "머리 크기";
-      var scaleRow = document.createElement("div"); scaleRow.className = "ro-head-scale"; scaleRow.setAttribute("role", "group"); scaleRow.setAttribute("aria-label", "머리 크기");
-      scaleRow.style.cssText = "display:flex;gap:6px;margin:4px 0";
-      var scaleButtons = [];
-      var paintScale = function () {
-        scaleButtons.forEach(function (b) { var on = b.percent === headPercent; b.style.borderColor = on ? "#F2C77A" : "#5a4636"; b.style.color = on ? "#F2C77A" : "#EBDDBC"; b.setAttribute("aria-pressed", on ? "true" : "false"); });
+    };
+    var autoPick = function (run, job, i, tries) {
+      var ac = new AbortController(), to = setTimeout(function () { ac.abort(); }, 20000);
+      fetch(st.base + "/face/pick?job=" + encodeURIComponent(job) + "&i=" + i, { method: "POST", signal: ac.signal })
+        .then(function (r) { clearTimeout(to); if (!r.ok) throw new Error("pick " + r.status); return r.json(); })
+        .then(function (j) {
+          if (run !== autoRun) return;
+          var face = j && j.face ? String(j.face) : "";
+          if (!face) throw new Error("pick 빈 번호");
+          st.job = ""; st.up = null;
+          autoLate(face);
+        }).catch(function (e) {
+          clearTimeout(to);
+          if (run !== autoRun) return;
+          if (tries < 3) { setTimeout(function () { autoPick(run, job, i, tries + 1); }, 2000); return; }   // 같은 job·i 다시 고르기는 서버가 같은 번호를 준다(감사 A16)
+          console.warn("[얼굴] 고르기 실패", e); autoFail();
+        });
+    };
+    var autoFail = function () {
+      var run = ++autoRun;
+      st.photoFails = (st.photoFails || 0) + 1;
+      if (st.job) { discardJob(st.job); st.job = ""; } st.up = null;
+      if (st.upErr === 503 || st.photoFails >= 2) { autoLate(""); return; }   // 다시 해도 안 됨·거듭 실패 = 묻지 않고 기본 얼굴(2026-11-10·11-14 사용자)
+      // 게임 화면(마법진) 위 고르기 창 — 게임 HTML 카드 색(갈색 판·금테)을 따르는 작은 창. 안 보이는 사진 입력은 창 안에
+      var old = document.getElementById("ro-late-face"); if (old) old.remove();
+      var box = document.createElement("div"); box.id = "ro-late-face";
+      box.style.cssText = "position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2147483000;width:min(86vw,360px);box-sizing:border-box;padding:18px 18px 16px;" +
+        "border:3px solid #C9963F;border-radius:18px;background:radial-gradient(ellipse at top,#71462c,#352014 80%);color:#fff1cd;text-align:center;box-shadow:0 12px 36px #000a;font-family:inherit";
+      box.innerHTML = "<div style='font-size:19px;font-weight:900;margin-bottom:6px'>얼굴 만들기에 실패했어요</div>" +
+        "<div style='font-size:13px;opacity:.85;line-height:1.5;margin-bottom:12px'>기본 얼굴로 시작하거나, 얼굴이 정면으로 잘 보이는 사진으로 다시 해 볼 수 있어요</div>";
+      var btn = function (label, main) {
+        var b = document.createElement("button"); b.type = "button"; b.textContent = label;
+        b.style.cssText = "display:block;width:100%;margin-top:8px;padding:12px 10px;font:inherit;font-size:17px;font-weight:900;border-radius:14px;cursor:pointer;" +
+          (main ? "border:3px solid #d7891b;border-top-color:#fff1a9;background:linear-gradient(#ffe78a,#ffc336 48%,#efa214);color:#452108;box-shadow:inset 0 2px #fff8,0 4px 0 #793b0d"
+                : "border:2px solid #C9963F;background:rgba(201,150,63,.12);color:#EBDDBC");
+        box.appendChild(b); return b;
       };
-      [100, 110, 120].forEach(function (percent) {
-        var b = document.createElement("button"); b.type = "button"; b.percent = percent; b.textContent = percent + "%";
-        b.style.cssText = "flex:1;min-width:0;height:36px;border:3px solid #5a4636;border-radius:8px;background:#3d2b20;color:#EBDDBC;font-size:13px;cursor:pointer";
-        b.onclick = function () {
-          if (headPercent === percent) return;
-          headPercent = percent;
-          scaleText.textContent = "머리 크기";
-          paintScale(); clearTimeout(scaleTimer); paint();
-          scaleTimer = setTimeout(function () {
-            if (!alive) return;
-            load(presetSel || sel);
-            paint();
-          }, 240);
-        };
-        scaleButtons.push(b); scaleRow.appendChild(b);
-      });
-      paintScale();
-      scaleLabel.appendChild(scaleText); scaleLabel.appendChild(scaleRow); c.card.appendChild(scaleLabel);
-      var retry = c.backBtn("미리보기 다시 불러오기", function () { load(presetSel || sel); paint(); });
-      // '미리보기 다시 불러오기' 버튼은 뺐다(2026-11-16 사용자) — 불러오지 못했을 때만 안내 글을 눌러 다시
-      previewStatus.onclick = function () { if (/다시 시도/.test(previewStatus.textContent)) retry.onclick(); };
-      // 목소리 듣기(2026-11-10) — 녹음했으면 내 목소리 자기소개(만드는 중이면 진행), 건너뛰었거나 실패면 기본 목소리 견본(성별)
-      var voiceBox = document.createElement("div");
-      voiceBox.style.cssText = "display:flex;flex-direction:column;gap:4px;margin-top:8px";
-      var listen = document.createElement("button"); listen.type = "button"; listen.className = "ro-voice-listen";
-      listen.style.cssText = "font:inherit;font-size:16px;font-weight:800;padding:9px 0;border:3px solid #a8743a;border-top-color:#e0b06a;border-radius:14px;background:linear-gradient(#6b4a30,#3d2a1c);box-shadow:inset 0 2px #fff3,0 4px 0 #1e120b;color:#fff1cd;cursor:pointer";
-      var voiceNote = document.createElement("div"); voiceNote.setAttribute("aria-live", "polite");
-      voiceNote.style.cssText = "font-size:12px;line-height:1.5;color:#ecd2a4;text-align:center;min-height:18px";
-      var listenAudio = null, listenLoading = false;
-      (function(){if(!document.getElementById('ro-spin-css')){var cs=document.createElement('style');cs.id='ro-spin-css';cs.textContent='@keyframes roSpin{to{transform:rotate(360deg)}}.ro-spin{display:inline-block;width:1.1em;height:1.1em;vertical-align:-0.2em;animation:roSpin .9s linear infinite}';document.head.appendChild(cs);}window.__roSpin=window.__roSpin||'data:image/png;base64,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';})();
-      var stopListen = function () { listenLoading = false; if (listenAudio) { var a = listenAudio; listenAudio = null; a.onended = a.onerror = null; a.pause(); a.removeAttribute("src"); } };
-      var paintVoice = function () {
-        if (!alive) return;
-        var vo = st.voice || { state: "none" }, on = !!listenAudio;
-        voiceNote.style.color = "#ecd2a4";
-        if (vo.state === "queued") {
-          listen.disabled = true; listen.style.opacity = ".6";
-          listen.textContent = "보이스 줄 서는 중 · " + (vo.pos > 1 ? "앞에 " + (vo.pos - 1) + "명" : "곧 내 차례");
-          voiceNote.innerHTML = "차례가 되면 바로 보이스를 만들어요" + (vo.wait > 0 ? " · 예상 대기 <b style='color:#FFD966'>약 " + (vo.wait < 60 ? vo.wait + "초" : Math.ceil(vo.wait / 60) + "분") + "</b>" : "");
-        } else if (vo.state === "baking") {
-          var pct = Math.min(95, Math.round((Date.now() - vo.started) / 1000 / (vo.expect || 15) * 100));
-          listen.disabled = true; listen.style.opacity = ".6"; listen.textContent = "보이스 만드는 중… " + pct + "%";
-          voiceNote.textContent = "곧 내 보이스로 들을 수 있어요";
-        } else {
-          listen.disabled = false; listen.style.opacity = "";
-          if (on && listenLoading) listen.innerHTML = "<img class='ro-spin' alt='' src='" + window.__roSpin + "'> 불러오는 중…";   // 누른 즉시 반응, 소리가 나오면 '멈추기'
-          else listen.textContent = on ? "■ 멈추기" : vo.state === "done" ? "🔊 내 보이스 듣기" : "🔊 보이스 듣기 (기본)";
-          if (vo.state === "done") voiceNote.innerHTML = "<b style='color:#75F5B6'>내 보이스</b>로 모험해요";
-          else if (vo.state === "fail") { voiceNote.textContent = vo.note; voiceNote.style.color = "#FFD966"; }
-          else voiceNote.textContent = "녹음을 건너뛰어 기본 보이스로 갑니다";
-        }
-        var recorded = !!(st.voice && (st.voice.job || st.voice.state === "queued"));
-        reRec.textContent = "보이스 다시 녹음";   // '목소리 녹음하기'(처음 녹음)는 뺐다(2026-11-16 사용자) — 녹음했을 때의 다시 녹음만
-        reRec.style.display = !recorded || st.voiceUploads >= 3 ? "none" : "block";   // 녹음은 처음 1회 + 다시 2회까지(RoVoiceStep MAX_UPLOADS)
+      var basic = btn("기본 얼굴로", true), again = btn("사진 다시", false);
+      var pick = document.createElement("input"); pick.type = "file"; pick.accept = "image/*"; pick.style.display = "none"; box.appendChild(pick);
+      basic.onclick = function () { if (run !== autoRun) return; box.remove(); autoLate(""); };
+      again.onclick = function () { pick.click(); };
+      pick.onchange = function () {
+        var f = pick.files && pick.files[0];
+        if (!f || run !== autoRun) return;
+        box.remove();
+        st.faceFile = f; upload(f); autoFace();   // 같은 이름·종족·성별·의상으로 다시 — 결과는 같은 길(1장째 그대로 끼움)
       };
-      listen.onclick = function () {
-        if (listenLoading) return;   // 받는 중 연타 무시(넘겨 버리지 않게)
-        if (listenAudio) { stopListen(); paintVoice(); return; }
-        var vo = st.voice || { state: "none" };
-        if (vo.state === "baking" || vo.state === "queued") return;
-        var a = listenAudio = new Audio(vo.state === "done" ? st.base + "/voice/job/" + encodeURIComponent(vo.job) + "/intro.mp3"
-          : "TemplateData/ro-onboarding/default_voice_" + (st.gender === 1 ? "f" : "m") + ".mp3");
-        listenLoading = true;
-        var lDone = function () { if (listenAudio === a) { listenAudio = null; listenLoading = false; paintVoice(); } };
-        a.addEventListener("playing", function () { if (listenAudio === a && listenLoading) { listenLoading = false; paintVoice(); } });
-        a.onended = a.onerror = lDone;
-        setTimeout(function () { if (listenAudio === a && listenLoading) { a.pause(); lDone(); } }, 9000);   // 9초 넘게 안 오면 풀기
-        var p = a.play(); if (p && p.catch) p.catch(lDone);
-        paintVoice();
-      };
-      var reRec = c.backBtn("목소리 다시 녹음", function () {   // 지금 작업을 버리고 녹음만 단계로 → 다시 이 화면(고른 얼굴은 처음부터)
-        stopListen(); disposePreview(); stopVoiceWatch(); discardVoice(); st.voice = null;
-        RoVoiceStep(st.base, st.name, function (v) { startVoiceWatch(v); choose(job, ok); }, st.gender, { recordOnly: true, step: 6, total: 7, uploads: st.voiceUploads, race: st.race });
-      });
-      reRec.style.cssText += ";display:block;margin:0 auto;font-size:12px";
-      voiceBox.appendChild(listen); voiceBox.appendChild(voiceNote); voiceBox.appendChild(reRec); c.card.appendChild(voiceBox);
-      voiceUi = paintVoice;
-      var err = c.errLine(); c.card.appendChild(err);
-      var go = c.mainBtn("모험 시작"); go.classList.add("ro-race-next"); go.style.marginTop = "6px";
-      go.onclick = function () {
-        if (!presetSel && (!sheets[key()] || !sheets[key()].ready || sheets[key()].scale !== headPercent)) return;
-        go.disabled = true;
-        retry.disabled = redo.disabled = reRec.disabled = true; scaleButtons.forEach(function (b) { b.disabled = true; });
-        tiles.concat(presetTiles).forEach(function (tile) { tile.disabled = true; });
-        var pickedCandidate = sel, pickedScale = headPercent;
-        if (presetSel) {
-          if (job) fetch(st.base + "/face/discard?job=" + encodeURIComponent(job), { method: "POST" }).catch(function () {});
-          disposePreview();
-          if (st.thumb) URL.revokeObjectURL(st.thumb);
-          enterGame("preset:" + presetSel, headPercent); return;
-        }
-        var pickAbort = new AbortController(), pickTimer = setTimeout(function () { pickAbort.abort(); }, 20000), pickStatus = 0;   // 감사 A16 — 응답이 안 오면 20초에 끊고 다시 누를 수 있게
-        fetch(st.base + "/face/pick?job=" + encodeURIComponent(job) + "&i=" + pickedCandidate, { method: "POST", signal: pickAbort.signal })
-          .then(function (r) { clearTimeout(pickTimer); pickStatus = r.status; if (!r.ok) throw new Error("pick " + r.status); return r.json(); })
+      if (!window.__roLateOk) return;
+      document.body.appendChild(box);
+    };
+    var autoVoice = function (vo) {
+      if (!vo || !vo.job && vo.state !== "queued") return;   // 녹음 안 함 = 기본 목소리
+      if (vo.state === "baking") pollVoice(vo);   // releaseOnboarding 전에 멈춘 묻기를 다시
+      var check = function () {
+        if (st.voice !== vo) return;
+        if (vo.state === "fail" || vo.state === "picked" || vo.state === "none") return;   // 실패 = 기본 목소리 그대로
+        if (vo.state !== "done") { setTimeout(check, 1000); return; }
+        var ac = new AbortController(), to = setTimeout(function () { ac.abort(); }, 20000);
+        fetch(st.base + "/voice/pick?job=" + encodeURIComponent(vo.job), { method: "POST", signal: ac.signal })
+          .then(function (r) { clearTimeout(to); if (!r.ok) throw new Error("pick " + r.status); return r.json(); })
           .then(function (j) {
-            if (!alive) return;
-            disposePreview();
-            if (st.thumb) URL.revokeObjectURL(st.thumb);
-            enterGame(String(j.face), pickedScale);
-          }, function (e) { if (!alive) return; console.warn("[얼굴] 고르기 실패", e); retry.disabled = redo.disabled = reRec.disabled = false; scaleButtons.forEach(function (b) { b.disabled = false; }); tiles.concat(presetTiles).forEach(function (tile) { tile.disabled = false; }); go.disabled = false; clearTimeout(pickTimer); err.textContent = pickStatus === 429 ? "요청이 많아요 — 잠시 후 다시 눌러 주세요" : "얼굴을 저장하지 못했습니다 — 다시 눌러 주세요"; c.shake(); });
+            var no = j && j.voice != null ? String(j.voice) : "";
+            if (!no) throw new Error("pick 빈 번호");
+            vo.state = "picked"; if (window.__roLateOk) SendMessage("NetSession", "OnHtmlVoice", no);
+          }).catch(function (e) { clearTimeout(to); console.warn("[목소리] 고르기 실패 — 기본 목소리로", e); discardVoice(); });
       };
-      c.card.appendChild(go);
-      var redo = c.backBtn(presetOnly ? "사진으로 얼굴 만들기" : "다른 사진으로 다시 만들기", function () { disposePreview(); if (st.thumb) URL.revokeObjectURL(st.thumb); st.thumb = null; showPhoto(); });
-      redo.style.cssText += ";display:block;margin:5px auto 0;font-size:12px"; c.card.appendChild(redo);
-      if (svcOff.face) redo.style.display = "none";   // 얼굴 만들기 꺼짐(2026-11-14) — 사진으로 돌아가는 길도 숨김
-      var updateFrame = function () {
-        if (!alive) return;
-        if (!document.hidden) {
-          var position = (frame * 100 / 7) + "% 0%";
-          bigView.style.backgroundPosition = position;
-          frame = (frame + 1) % 8;
-        }
-        timer = setTimeout(updateFrame, 200);   // 2026-11-11 사용자 "두 배 빠르게"(400 → 200ms)
-      };
-      disposePreview = function () {
-        if (!alive) return; alive = false; clearTimeout(timer); clearTimeout(scaleTimer); stopListen(); if (voiceUi === paintVoice) voiceUi = null;
-        images.forEach(function (pending) { clearTimeout(pending.timeout); pending.image.onload = pending.image.onerror = null; pending.image.src = ""; });
-        large.remove(); disposePreview = null;
-      };
-      if (presetOnly) { presetSel = heads[0]; load(presetSel); } else load(sel);
-      updateFrame(); paint(); paintVoice();
+      check();
+    };
+
+    // 랜덤 캐릭터(2026-11-21 사용자 "나만의 캐릭터 vs 랜덤 캐릭터 — 랜덤은 프리셋 3종 중 무작위로 바로 시작, 미리보기 화면 폐기") —
+    //   얼굴·목소리 확인 화면(choose)은 지웠다. 기본 머리 셋 중 하나를 골라 프롤로그(아직이면) 뒤 바로 접속, 목소리는 기본
+    var randomEnter = function () {
+      var heads = presetHeads(), head = heads[Math.floor(Math.random() * heads.length)];
+      st.faceFirst = true;   // 프롤로그를 아직 안 봤으면 enterGame 이 먼저 튼다
+      enterGame("preset:" + head, 100);
     };
 
     if (resume && (resume.race === 0 || resume.race === 1) && /^[0-9]{4}$/.test(resume.pin || "") && resume.name) {
@@ -3787,7 +3629,6 @@ mergeInto(LibraryManager.library, {
       st.detail = resume.detail === 1 ? 1 : 0; st.acc = Array.isArray(resume.acc) ? resume.acc : [];
       document.documentElement.dataset.roUiRace = st.race === 1 ? "orc" : "human";
       SendMessage("NetSession", "OnHtmlRace", String(st.race));
-      prefetchPresets();
       // 2026-11-10 사용자 "사진이 계속 걸리면(실패하면) 자동으로 다음으로 — 사진은 기본 결정된 걸로 스킵": 두 번째 새로 열림이면 사진 없이(기본 얼굴) 다음 단계로
       st.photoFails = (Number(resume.fails) || 0) + 1;
       if (st.photoFails >= 2) { st.noPhoto = true; st.photoNotice = ""; afterPhoto(); return; }
@@ -3896,6 +3737,136 @@ mergeInto(LibraryManager.library, {
     document.body.style.touchAction = "none";
     document.body.style.overscrollBehavior = "none";
     if (!window.__roGestureOff) { window.__roGestureOff = true; document.addEventListener("gesturestart", function (e) { e.preventDefault(); }, { passive: false }); }
+  },
+  // 버그·의견 입력 카드 — 브라우저 prompt 대신 진짜 HTML 글칸(2026-11-21 사용자 '휴대폰에서 시스템 창이 먼저 뜨고 키보드가 안 올라온다').
+  //   채팅 입력줄(RoChatOpen)과 같은 방식: 포커스 재시도(120·400ms) + 0.45초 뒤에도 포커스가 없으면 다음 한 번의 터치에서 포커스(금빛 '여기를 눌러 입력').
+  //   보내기 = go.OnHtmlFeedback(글), 닫기·바깥 누름 = go.OnHtmlFeedbackClose(글 — 쓰던 글을 남겨 둘 수 있게). 닫기 버튼은 아래 가운데.
+  //   RoTextCard = 같은 카드를 여러 창이 쓰도록 뺀 몸통(2026-11-21 채널 '이름으로 찾기'도 씀) — okM·closeM = 알릴 메서드 이름, single = 한 줄 입력(엔터 = 확인, 글자 수 표시 없음).
+  $RoTextCard: function (title, ph, text, go, okM, closeM, MAX, okLabel, single) {
+    var old = document.getElementById("ro-fb-layer");
+    if (old) { var ta0 = document.getElementById("ro-fb-text"); if (ta0) ta0.focus({ preventScroll: true }); return; }   // 두 번 열기 막기
+    if (!(MAX > 0)) MAX = 300;
+    var layer = document.createElement("div");
+    layer.id = "ro-fb-layer";
+    layer.style.cssText = "position:fixed;left:0;top:0;width:100%;height:100%;z-index:10000;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;" +
+      "padding:12px;box-sizing:border-box;font-family:'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;pointer-events:none;";
+    var card = document.createElement("div");
+    card.style.cssText = "width:min(560px,calc(100vw - 24px));max-height:100%;overflow:auto;box-sizing:border-box;padding:18px 18px 14px;border-radius:8px;" +
+      "background:var(--ro-ui-bg,#2E2018);border:2px solid var(--ro-ui-edge,#C9963F);box-shadow:0 8px 28px rgba(0,0,0,0.6);display:flex;flex-direction:column;gap:10px;";
+    var head = document.createElement("div");
+    head.textContent = title;
+    head.style.cssText = "text-align:center;font-size:19px;font-weight:bold;color:#f3ca73;word-break:keep-all;";
+    var ta = document.createElement(single ? "input" : "textarea");
+    if (single) { ta.type = "text"; ta.setAttribute("enterkeyhint", "search"); } else ta.rows = 5;
+    ta.id = "ro-fb-text"; ta.maxLength = MAX; ta.placeholder = ph; ta.value = (text || "").slice(0, MAX);
+    ta.setAttribute("autocomplete", "off");
+    ta.style.cssText = "width:100%;box-sizing:border-box;resize:none;" + (single ? "" : "min-height:120px;") + "font-size:17px;line-height:1.45;padding:10px 12px;border-radius:6px;" +
+      "border:1px solid var(--ro-ui-edge,#C9963F);background:#EBDDBC;color:var(--ro-ui-bg,#2E2018);outline:none;font-family:inherit;";
+    var count = document.createElement("div");
+    count.style.cssText = "text-align:right;font-size:13px;color:#cdb68a;margin-top:-4px;";
+    var paintCount = function () { count.textContent = ta.value.length + " / " + MAX; };
+    paintCount();
+    var send = document.createElement("button");
+    send.type = "button"; send.textContent = okLabel || "보내기";
+    send.style.cssText = "width:100%;font-size:18px;padding:11px 16px;border-radius:6px;border:none;background:var(--ro-ui-button,#9E3B2E);color:#EBDDBC;font-weight:bold;";
+    var close = document.createElement("button");
+    close.type = "button"; close.textContent = "닫기";
+    close.style.cssText = "align-self:center;min-width:120px;font-size:17px;padding:9px 22px;border-radius:6px;border:1px solid var(--ro-ui-edge,#C9963F);background:#5a4636;color:#EBDDBC;font-weight:bold;";
+    card.appendChild(head); card.appendChild(ta); if (!single) card.appendChild(count); card.appendChild(send); card.appendChild(close);
+    layer.appendChild(card);
+    document.body.appendChild(layer);
+    // 여는 터치 뒤에 따라오는 click 이 바로 새 카드(바깥 = 닫기)에 떨어지지 않게 잠깐 누름을 막는다
+    setTimeout(function () { if (layer.isConnected) layer.style.pointerEvents = ""; }, 350);
+
+    // 키보드가 올라와도 카드는 보이는 화면(visualViewport) 가운데 — 아이폰은 문서를 고정하고 밀리면 되돌린다, 안드로이드 overlays-content 는 VirtualKeyboard 위끝도 본다
+    var de = document.documentElement, b = document.body;
+    var saved = { de: de.style.overflow, bo: b.style.overflow, bp: b.style.position, bt: b.style.top, bl: b.style.left, bw: b.style.width, bh: b.style.height };
+    de.style.overflow = "hidden"; b.style.overflow = "hidden"; b.style.position = "fixed"; b.style.top = "0"; b.style.left = "0"; b.style.width = "100%"; b.style.height = "100%";
+    var fit = function () {
+      if (!layer.isConnected) return;
+      if (window.scrollY || window.scrollX || de.scrollTop || b.scrollTop) { window.scrollTo(0, 0); de.scrollTop = b.scrollTop = 0; }
+      var vv = window.visualViewport;
+      var top = vv ? vv.offsetTop : 0, bottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+      var vk = navigator.virtualKeyboard;
+      if (vk && vk.overlaysContent && vk.boundingRect && vk.boundingRect.height > 0) bottom = Math.min(bottom, vk.boundingRect.top);
+      layer.style.top = Math.round(top) + "px";
+      layer.style.height = Math.max(120, Math.round(bottom - top)) + "px";
+    };
+    if (window.visualViewport) { window.visualViewport.addEventListener("resize", fit); window.visualViewport.addEventListener("scroll", fit); }
+    if (navigator.virtualKeyboard) navigator.virtualKeyboard.addEventListener("geometrychange", fit);
+    window.addEventListener("scroll", fit, { passive: true });
+    ta.addEventListener("focus", function () { fit(); setTimeout(fit, 50); setTimeout(fit, 300); });
+    ta.addEventListener("blur", function () { setTimeout(fit, 50); });
+    fit();
+
+    var once = null;
+    var done = false;
+    var finish = function (method) {
+      if (done) return; done = true;
+      var v = ta.value;
+      if (once) document.removeEventListener("touchend", once, true);
+      if (window.visualViewport) { window.visualViewport.removeEventListener("resize", fit); window.visualViewport.removeEventListener("scroll", fit); }
+      if (navigator.virtualKeyboard) navigator.virtualKeyboard.removeEventListener("geometrychange", fit);
+      window.removeEventListener("scroll", fit);
+      ta.blur();
+      if (layer.parentNode) layer.parentNode.removeChild(layer);
+      de.style.overflow = saved.de; b.style.overflow = saved.bo; b.style.position = saved.bp; b.style.top = saved.bt; b.style.left = saved.bl; b.style.width = saved.bw; b.style.height = saved.bh;
+      window.__roFeedbackClose = null;
+      if (method && go) { try { SendMessage(go, method, v); } catch (_) {} }
+    };
+    window.__roFeedbackClose = function () { finish(null); };   // RoFeedbackClose(게임이 닫음) = 알림 없이 치우기
+    send.onclick = function () {
+      if (!ta.value.trim().length) { ta.focus({ preventScroll: true }); return; }
+      finish(okM);
+    };
+    close.onclick = function () { finish(closeM); };
+    layer.addEventListener("click", function (e) { if (e.target === layer) close.onclick(); });
+    ta.addEventListener("input", paintCount);
+    // 입력 중 키가 게임 조작(WASD 등)으로 새지 않게 — 채팅 입력줄과 같이 keydown·keyup·keypress 모두 막는다
+    ta.onkeydown = function (e) {
+      e.stopPropagation();
+      if (e.key === "Escape") close.onclick();
+      else if (single && e.key === "Enter" && !e.isComposing) { e.preventDefault(); send.onclick(); }   // 한 줄 입력 = 엔터로 확인(한글 조합 중 엔터는 무시)
+    };
+    ta.onkeyup = function (e) { e.stopPropagation(); };
+    ta.onkeypress = function (e) { e.stopPropagation(); };
+
+    ta.focus({ preventScroll: true });
+    try { ta.setSelectionRange(ta.value.length, ta.value.length); } catch (_) {}
+    setTimeout(function () { if (!done) ta.focus({ preventScroll: true }); }, 120);
+    setTimeout(function () { if (!done && document.activeElement !== ta) ta.focus({ preventScroll: true }); }, 400);
+    // 아이폰은 터치 처리 안에서만 focus 가 키보드를 띄운다 — 못 띄웠으면 다음 한 번의 터치에서 포커스, 그동안 글칸을 금빛으로
+    setTimeout(function () {
+      if (done || document.activeElement === ta) return;
+      ta.placeholder = "여기를 눌러 입력";
+      ta.style.boxShadow = "0 0 0 3px #FFD966,0 0 14px #FFD966aa";
+      var calm = function () { ta.placeholder = ph; ta.style.boxShadow = ""; ta.removeEventListener("focus", calm); if (once) document.removeEventListener("touchend", once, true); };
+      once = function (e) {
+        document.removeEventListener("touchend", once, true);
+        if (done) return;
+        if (e.target && e.target.closest && e.target.closest("#ro-fb-layer button")) return;   // 보내기·닫기 누름은 그대로
+        if (e.target === layer) return;   // 바깥 누름 = 닫기
+        ta.focus({ preventScroll: true }); if (document.activeElement === ta) calm();
+      };
+      document.addEventListener("touchend", once, true);
+      ta.addEventListener("focus", calm);
+    }, 450);
+  },
+  RoFeedbackOpen__deps: ["$RoTextCard"],
+  RoFeedbackOpen: function (titlePtr, placeholderPtr, textPtr, goPtr) {
+    RoTextCard(UTF8ToString(titlePtr), UTF8ToString(placeholderPtr), UTF8ToString(textPtr), UTF8ToString(goPtr), "OnHtmlFeedback", "OnHtmlFeedbackClose", 300, "보내기", 0);
+  },
+  // 같은 카드를 다른 창이 쓸 때 — 알릴 메서드 이름·글자 수·확인 글자·한 줄 여부를 정한다(채널 '이름으로 찾기')
+  RoTextOpen__deps: ["$RoTextCard"],
+  RoTextOpen: function (titlePtr, placeholderPtr, textPtr, goPtr, okPtr, closePtr, maxLen, okLabelPtr, singleLine) {
+    RoTextCard(UTF8ToString(titlePtr), UTF8ToString(placeholderPtr), UTF8ToString(textPtr), UTF8ToString(goPtr),
+      UTF8ToString(okPtr), UTF8ToString(closePtr), maxLen, UTF8ToString(okLabelPtr), singleLine ? 1 : 0);
+  },
+  // 버그·의견 입력 카드가 떠 있으면 닫는다(게임 쪽 창이 먼저 닫힐 때)
+  RoFeedbackClose: function () {
+    if (window.__roFeedbackClose) { window.__roFeedbackClose(); return; }
+    var l = document.getElementById("ro-fb-layer");
+    if (l && l.parentNode) l.parentNode.removeChild(l);
   },
   RoPrompt: function (msgPtr, defPtr) {
     var r = window.prompt(UTF8ToString(msgPtr), UTF8ToString(defPtr));
