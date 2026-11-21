@@ -421,6 +421,7 @@ mergeInto(LibraryManager.library, {
     };
     ui.ensure = function () {
       if (ui.root && ui.root.isConnected) return ui;
+      var ic = document.getElementById("ro-intro-cover"); if (ic) ic.remove();   // 첫 입장 검은 덮개(RoIntroCover) — 로그인 카드가 다시 뜨면 걷는다
       var root = ui.root = document.createElement("div");
       root.id = "ro-entry-overlay";
       root.style.cssText = "position:fixed;inset:0;z-index:10000;background:#100d0a;backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);overflow:auto;overscroll-behavior:contain;font-family:'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;isolation:isolate";
@@ -550,6 +551,41 @@ mergeInto(LibraryManager.library, {
   },
   RoRaceBackdropReady__deps: ["$RoEntryUI"],
   RoRaceBackdropReady: function (ready) { RoEntryUI().setRacePreview(Number(ready) !== 0); },
+  // 첫 입장 검은 덮개(2026-11-21 기획 세션 — 사용자 "연출이 나오기 전엔 검은 화면에서 포링 로딩 중 화면이 나와야 되고, 시작하면 검은 화면에서 불타고 있는 성이") —
+  //   새 캐릭터(·?introraid=1) 접속이 끝나 접속 덮개가 걷히는 순간(RoEntryReady 바로 앞)부터 전투 연출이 시작될 때까지 검은 바탕 + 가운데 포링 로딩.
+  //   그 사이 로그인 배경·맵 받기가 비치지 않게. 켜고 끄기는 C# IntroCover(Assets/_RO/Net/IntroCover.cs). 얼굴 실패 고르기 창(#ro-late-face)은 이보다 위
+  RoIntroCover: function (on) {
+    var old = document.getElementById("ro-intro-cover");
+    if (!on) { if (old) old.remove(); return; }
+    if (old) return;
+    if (!document.getElementById("ro-intro-cover-style")) {
+      var st = document.createElement("style"); st.id = "ro-intro-cover-style";
+      st.textContent = "@keyframes roIcHop{0%{transform:translateY(0) scale(1.14,.86)}12%{transform:translateY(-8%) scale(.86,1.16)}50%{transform:translateY(-62%) scale(.97,1.04);animation-timing-function:cubic-bezier(.55,0,.85,.4)}86%{transform:translateY(-4%) scale(.9,1.12)}100%{transform:translateY(0) scale(1.14,.86)}}"
+        + "@keyframes roIcShd{0%,100%{transform:scale(1.15);opacity:.55}50%{transform:scale(.55);opacity:.22}}"
+        + "@keyframes roIcD1{0%,24%{opacity:0}25%,100%{opacity:1}}@keyframes roIcD2{0%,49%{opacity:0}50%,100%{opacity:1}}@keyframes roIcD3{0%,74%{opacity:0}75%,100%{opacity:1}}"
+        + "#ro-intro-cover .hop{animation:roIcHop .7s cubic-bezier(.2,.7,.4,1) infinite;transform-origin:50% 100%}#ro-intro-cover .shd{animation:roIcShd .7s ease-in-out infinite}"
+        + "#ro-intro-cover .dot{opacity:0;animation:roIcD1 1.4s linear infinite}#ro-intro-cover .dot:nth-child(2){animation-name:roIcD2}#ro-intro-cover .dot:nth-child(3){animation-name:roIcD3}"
+        + "@media (prefers-reduced-motion:reduce){#ro-intro-cover .hop,#ro-intro-cover .shd{animation:none}}";
+      document.head.appendChild(st);
+    }
+    var pw = 60;   // 접속 로딩 화면(ui.busy)과 같은 크기·움직임
+    var c = document.createElement("div"); c.id = "ro-intro-cover";
+    c.setAttribute("role", "status"); c.setAttribute("aria-label", "Loading");
+    c.style.cssText = "position:fixed;inset:0;z-index:10001;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#EBDDBC;padding-bottom:6vh;box-sizing:border-box;-webkit-user-select:none;user-select:none";
+    var stage = document.createElement("div"); stage.setAttribute("aria-hidden", "true");
+    stage.style.cssText = "position:relative;width:" + pw + "px;height:" + Math.round(pw * 1.3) + "px";
+    var shd = document.createElement("div"); shd.className = "shd";
+    shd.style.cssText = "position:absolute;left:18%;right:18%;bottom:0;height:" + Math.round(pw * 0.13) + "px;border-radius:50%;background:radial-gradient(#f2c77a33,#f2c77a00 70%)";
+    var hop = document.createElement("img"); hop.className = "hop"; hop.alt = ""; hop.draggable = false;
+    hop.src = "TemplateData/ro-onboarding/loading_poring.webp";
+    hop.style.cssText = "position:absolute;left:0;bottom:" + Math.round(pw * 0.05) + "px;width:100%;height:auto;display:block";
+    stage.appendChild(shd); stage.appendChild(hop);
+    var label = document.createElement("div"); label.setAttribute("aria-hidden", "true");
+    label.style.cssText = "font-size:20px;font-weight:800;letter-spacing:1px;text-shadow:0 2px 0 #0008";
+    label.appendChild(document.createTextNode("Loading"));
+    for (var i = 0; i < 3; i++) { var d = document.createElement("span"); d.className = "dot"; d.textContent = "."; label.appendChild(d); }
+    c.appendChild(stage); c.appendChild(label); document.body.appendChild(c);
+  },
   RoEntryReady__deps: ["$RoEntryUI"],
   RoEntryReady: function () {
     // 월드에 들어온 계정 이름을 로그인 카드 이름 칸용(ro_login_name)으로 남긴다(QA 새 유저 v153 "로그아웃 뒤 이름 칸에 예전 이름") —
