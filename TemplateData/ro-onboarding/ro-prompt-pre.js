@@ -2703,13 +2703,20 @@ mergeInto(LibraryManager.library, {
     // 4 얼굴은 선택(2026-11-11 사용자 "얼굴 이미지 만드는 것도 스킵할지 만들지 물어보자, 사운드처럼") — [사진으로 만들기] = 사진 카드,
     //   [건너뛰기] = 사진 카드의 '사진 없이 진행'과 같은 길(기본 얼굴 → 목소리 물음 → 프롤로그 → 7 확인에서 기본 얼굴 고르기)
     // 물음 카드(얼굴·목소리)의 두 버튼을 나란히 큰 정사각 타일로 — 아이콘 + 글(2026-11-13 사용자 "사진 만들기·기본 사진 버튼 두껍게" → 시안 B, "사운드도 해당 정사각 버튼으로", Concept/ui/face_ask_btn/)
-    var askTiles = function (list) {   // [[버튼, 아이콘 svg 안쪽, 글(<br> 가능)], ...]
+    var askTiles = function (list) {   // [[버튼, 아이콘 svg 안쪽, 글(<br> 가능), 그림 주소(있으면 svg 대신 — 글 위·그림 아래 긴 타일)], ...]
       var tiles = document.createElement("div");
       tiles.style.cssText = "display:flex;gap:12px;margin-top:20px";
       list.forEach(function (t) {
-        t[0].innerHTML = "<svg width='34' height='34' viewBox='0 0 64 64' fill='none' stroke='currentColor' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'>" + t[1] + "</svg>" +
-          "<div style='margin-top:8px;line-height:1.25'>" + t[2] + "</div>";
-        t[0].style.cssText += ";flex:1;margin:0!important;height:132px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:20px!important;padding:0!important";
+        if (t[3]) {
+          // 2026-11-22 사용자 시안 C(Concept/ui/make_choice/draft_C.png) "버튼 팝업 크기 키우고 나만의·랜덤 뜻에 맞는 귀여운 그림" — 글 위, 그림 아래, 타일을 세로로 길게
+          t[0].innerHTML = "<div style='line-height:1.2;margin-top:4px'>" + t[2] + "</div>" +
+            "<img alt='' draggable='false' src='" + t[3] + "' style='display:block;flex:0 0 auto;width:100%;height:auto;max-height:62%;object-fit:contain;margin-top:4px;pointer-events:none;filter:drop-shadow(0 4px 5px #0006)'>";
+          t[0].style.cssText += ";flex:1;margin:0!important;height:min(300px,46vh);display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;font-size:24px!important;padding:14px 4px 10px!important;box-sizing:border-box";
+        } else {
+          t[0].innerHTML = "<svg width='34' height='34' viewBox='0 0 64 64' fill='none' stroke='currentColor' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'>" + t[1] + "</svg>" +
+            "<div style='margin-top:8px;line-height:1.25'>" + t[2] + "</div>";
+          t[0].style.cssText += ";flex:1;margin:0!important;height:132px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:20px!important;padding:0!important";
+        }
         tiles.appendChild(t[0]);
       });
       c.card.appendChild(tiles);
@@ -2753,8 +2760,8 @@ mergeInto(LibraryManager.library, {
       make.onclick = function () { st.mode = "custom"; showPhoto(); };
       var no = c.defaultFaceBtn("랜덤 캐릭터"); no.classList.add("ro-face-ask-skip");
       no.onclick = function () { st.mode = "preset"; invalidatePhoto(); st.noPhoto = true; st.photoNotice = ""; afterPhoto(); };
-      askTiles([[make, "<rect x='6' y='16' width='52' height='38' rx='7'/><path d='M22 16 l5 -7 h10 l5 7'/><circle cx='32' cy='35' r='10'/>", "나만의<br>캐릭터"],
-                [no, "<circle cx='32' cy='32' r='24'/><circle cx='24' cy='28' r='2.5' fill='currentColor'/><circle cx='40' cy='28' r='2.5' fill='currentColor'/><path d='M22 40 q10 9 20 0'/>", "랜덤<br>캐릭터"]]);
+      askTiles([[make, "<rect x='6' y='16' width='52' height='38' rx='7'/><path d='M22 16 l5 -7 h10 l5 7'/><circle cx='32' cy='35' r='10'/>", "나만의<br>캐릭터", "TemplateData/ro-onboarding/make/make_custom.webp"],
+                [no, "<circle cx='32' cy='32' r='24'/><circle cx='24' cy='28' r='2.5' fill='currentColor'/><circle cx='40' cy='28' r='2.5' fill='currentColor'/><path d='M22 40 q10 9 20 0'/>", "랜덤<br>캐릭터", "TemplateData/ro-onboarding/make/make_random.webp"]]);   // 마법 거울 = 내 얼굴로 / 마법 모자 = 무작위(시안 C)
       c.card.appendChild(c.stepBack(showPin));   // 뒤로가기 = 3 비밀번호
       serviceDown("face", make, c.card, "나만의 캐릭터 만들기가 잠시 멈췄어요 · 랜덤 캐릭터로 시작해 주세요");
     };
@@ -3091,7 +3098,7 @@ mergeInto(LibraryManager.library, {
       inp.oninput = function () { if (err.textContent) err.textContent = ""; };
       inp.addEventListener("compositionend", function () { if (inp.value.length > 6) inp.value = inp.value.slice(0, 6); });   // 한글 조합이 끝나면 6자로 자름
       c.card.appendChild(err);
-      var next = c.mainBtn("다음"); next.classList.add("ro-race-next");
+      var next = c.mainBtn("결정"); next.classList.add("ro-race-next");
       next.style.marginTop = "6px";
       next.onclick = go;
       c.card.appendChild(next);
@@ -3104,35 +3111,48 @@ mergeInto(LibraryManager.library, {
       c.wrap.classList.remove("ro-race-card");
       c.card.innerHTML = c.raceShell(4, "비밀번호를 정해 주세요", "", 7);   // QA 새 유저 v152 — 이름과 같은 3/7 이었다
       c.anim();
+      // 2026-11-22 사용자 "비밀번호 화면 한 화면에 두 개 표시해서 한 번에 받는다 — 정해 주세요 4칸, 아래 '한 번 입력' 4칸, 결정" — 예전 = 같은 4칸에 두 번(제목만 바뀜)
       var err = c.errLine();
-      var inp, first = null, paintPin, pinHint, pinTitle;
+      var inp, inp2, paintPin, paintPin2;
       var go = function () {
         if (!/^[0-9]{4}$/.test(inp.value)) { err.textContent = "비밀번호는 숫자 4자리예요"; c.shake(); inp.focus(); return; }
-        // 한 번 묻고 한 번 더(2026-11-19 사용자 "비번 정할 때 두 번 묻자", "한 번 묻고 한 번 더 묻자, 맞는지") — 다르면 처음부터
-        if (first === null) { first = inp.value; inp.value = ""; paintPin.hide(); pinTitle.textContent = "한 번 더 입력해 주세요"; pinHint.textContent = "확인을 위해 한 번 더 입력해 주세요"; pinHint.style.color = "#ffdb75"; err.textContent = ""; inp.focus(); return; }
-        if (inp.value !== first) { first = null; inp.value = ""; paintPin.hide(); pinTitle.textContent = "비밀번호를 정해 주세요"; pinHint.textContent = "다음 접속 때 필요하니 꼭 기억해 주세요"; pinHint.style.color = "#e7c99d"; err.textContent = "비밀번호가 서로 달라요 — 처음부터 다시 입력해 주세요"; c.shake(); inp.focus(); return; }
+        if (!/^[0-9]{4}$/.test(inp2.value)) { err.textContent = "아래 칸에 같은 비밀번호를 한 번 더 넣어 주세요"; c.shake(); inp2.focus(); return; }
+        if (inp.value !== inp2.value) { inp2.value = ""; paintPin2.hide(); err.textContent = "서로 달라요 — 아래 칸을 다시 넣어 주세요"; c.shake(); inp2.focus(); return; }
         if (st.race !== 0 && st.race !== 1) { showRace(); return; }
-        st.pin = inp.value; inp.blur();
+        st.pin = inp.value; inp.blur(); inp2.blur();
         askFace();   // 2026-11-10 비번 다음 = 사진(얼굴 생성은 사진을 넣는 순간 시작) → 2026-11-11 그 앞에 '내 얼굴로 만들까요?' 물음
       };
-      inp = c.input("비밀번호 · 숫자 4자리", go);
-      if (inp.previousElementSibling) inp.previousElementSibling.remove();   // 입력칸 위 라벨 없음(2026-11-16 사용자) — 확인 칸의 '한 번 더' 라벨은 둘을 가르려고 남김
-      inp.type = "password"; inp.maxLength = 4; inp.setAttribute("inputmode", "numeric"); inp.setAttribute("pattern", "[0-9]*");
-      inp.autocomplete = "one-time-code";   // 아이폰 사파리가 '강력한 암호'(영문 섞인 긴 암호)를 제안해 노란 칸으로 채우지 않게
+      var pinInput = function (label, aria, onEnter) {
+        var x = c.input(label, onEnter);
+        x.type = "password"; x.maxLength = 4; x.setAttribute("inputmode", "numeric"); x.setAttribute("pattern", "[0-9]*");
+        x.autocomplete = "one-time-code";   // 아이폰 사파리가 '강력한 암호'(영문 섞인 긴 암호)를 제안해 노란 칸으로 채우지 않게
+        x.setAttribute("aria-label", aria);
+        return x;
+      };
+      inp = pinInput("비밀번호 · 숫자 4자리", "비밀번호 숫자 4자리", function () { if (inp.value.length === 4) inp2.focus(); else go(); });
+      if (inp.previousElementSibling) inp.previousElementSibling.remove();   // 첫 칸 위 라벨 없음(2026-11-16 사용자) — 제목이 대신
       inp.value = st.pin;
-      inp.setAttribute("aria-label", "비밀번호 숫자 4자리");
-      paintPin = c.pinBoxes(inp, 72);
-      pinTitle = Array.prototype.filter.call(c.card.querySelectorAll("*"), function (e) { return !e.childElementCount && e.textContent === "비밀번호를 정해 주세요"; })[0] || document.createElement("span");   // 확인 단계에서 제목을 바꾼다
-      pinHint = document.createElement("div"); pinHint.textContent = "다음 접속 때 필요하니 꼭 기억해 주세요";
-      pinHint.style.cssText = "color:#e7c99d;font-size:13px;line-height:1.6;margin:10px 0 16px"; c.card.appendChild(pinHint);
-      inp.oninput = function () { var v = inp.value.replace(/[^0-9]/g, "").slice(0, 4); if (v !== inp.value) inp.value = v; paintPin(); if (err.textContent) err.textContent = ""; };
+      paintPin = c.pinBoxes(inp, 64);
+      inp2 = pinInput("한 번 더 입력", "비밀번호 확인 숫자 4자리", go);
+      inp2.value = st.pin;
+      paintPin2 = c.pinBoxes(inp2, 64);
+      var pinHint = document.createElement("div"); pinHint.textContent = "다음 접속 때 필요하니 꼭 기억해 주세요";
+      pinHint.style.cssText = "color:#e7c99d;font-size:13px;line-height:1.6;margin:6px 0 12px"; c.card.appendChild(pinHint);
+      var onType = function (x, paint, after) {
+        x.oninput = function () {
+          var v = x.value.replace(/[^0-9]/g, "").slice(0, 4); if (v !== x.value) x.value = v; paint(); if (err.textContent) err.textContent = "";
+          if (after && v.length === 4) after();
+        };
+      };
+      onType(inp, paintPin, function () { if (inp2.value.length < 4) inp2.focus(); });   // 위 4칸을 다 넣으면 아래 칸으로
+      onType(inp2, paintPin2, null);
       c.card.appendChild(err);
-      var next = c.mainBtn("다음"); next.classList.add("ro-race-next");
+      var next = c.mainBtn("결정"); next.classList.add("ro-race-next");
       next.style.marginTop = "6px";
       next.onclick = go;
       c.card.appendChild(next);
       c.card.appendChild(c.stepBack(showName));   // 뒤로가기 = 3 이름
-      setTimeout(function () { inp.focus(); }, 50);
+      setTimeout(function () { (inp.value.length === 4 ? inp2 : inp).focus(); }, 50);
     };
 
     // 사진 단계를 마침(사진 넣음 / 사진 없이 진행) → NetSession.OnHtmlNewStart(데이터 모양 그대로) → 5 목소리 녹음(녹음만) → 6 프롤로그 → 7 확인(2026-11-10)
@@ -3211,7 +3231,7 @@ mergeInto(LibraryManager.library, {
         if (v !== st.gender && (st.up || st.thumb)) { invalidatePhoto(); st.photoNotice = "성별을 바꿨습니다. 사진을 다시 선택해 주세요."; }
         st.gender = v;
       }, st.race === 1));
-      var next = c.mainBtn("다음");
+      var next = c.mainBtn("결정");
       next.classList.add("ro-race-next");
       next.onclick = showName;   // 2026-11-10 성별 다음 = 이름
       c.card.appendChild(next); c.card.appendChild(c.stepBack(function () { wrapRaceOff(); showRace(); }));   // 뒤로가기 = 1 종족
@@ -3225,7 +3245,7 @@ mergeInto(LibraryManager.library, {
       stopCam(); entry.hideBusy();
       c.card.innerHTML = c.raceShell(1, null, null, 7); c.wrap.classList.add("ro-race-wide");
       c.anim();
-      var next = c.mainBtn("다음");
+      var next = c.mainBtn("결정");
       var raceErr = c.errLine();
       // 고르기 전엔 흐리게 — 눌러도 막지 않고 카드를 흔들며 안내(QA B3: 예전엔 disabled 라 눌러도 아무 반응이 없었다)
       var dimNext = function () { var on = st.race === 0 || st.race === 1; next.style.opacity = on ? "" : ".45"; next.style.filter = on ? "" : "grayscale(.6)"; };
@@ -3706,7 +3726,7 @@ mergeInto(LibraryManager.library, {
       c.card.innerHTML = c.raceShell(steps - 1, null, null, steps); c.wrap.classList.add("ro-race-wide");
       c.anim();
       c.card.appendChild(c.raceTiles(function () { return race; }, function (v) { race = v; document.documentElement.dataset.roUiRace = v === 1 ? "orc" : "human"; RoEntryUI().setRacePreview(false); SendMessage("NetSession", "OnHtmlRace", String(v)); go.disabled = false; }));
-      var go = c.mainBtn("다음"); go.classList.add("ro-race-next");
+      var go = c.mainBtn("결정"); go.classList.add("ro-race-next");
       go.disabled = race !== 0 && race !== 1; go.onclick = function () { c.raceH = c.card.offsetHeight; c.wrap.classList.remove("ro-race-card"); showGender(); };   // 이전 종족이 골라진 채 뜨므로 켜 둔다(QA B9 — 늘 꺼 두면 '다음'이 무반응)
       go.style.marginTop = "6px"; c.card.appendChild(go);
       c.card.appendChild(c.stepBack(pin0 ? showPin : backToLogin));   // 뒤로가기 = 비번 확인(있으면) / 로그인 카드
@@ -3778,7 +3798,9 @@ mergeInto(LibraryManager.library, {
   //   채팅 입력줄(RoChatOpen)과 같은 방식: 포커스 재시도(120·400ms) + 0.45초 뒤에도 포커스가 없으면 다음 한 번의 터치에서 포커스(금빛 '여기를 눌러 입력').
   //   보내기 = go.OnHtmlFeedback(글), 닫기·바깥 누름 = go.OnHtmlFeedbackClose(글 — 쓰던 글을 남겨 둘 수 있게). 닫기 버튼은 아래 가운데.
   //   RoTextCard = 같은 카드를 여러 창이 쓰도록 뺀 몸통(2026-11-21 채널 '이름으로 찾기'도 씀) — okM·closeM = 알릴 메서드 이름, single = 한 줄 입력(엔터 = 확인, 글자 수 표시 없음).
-  $RoTextCard: function (title, ph, text, go, okM, closeM, MAX, okLabel, single) {
+  //   photo(의견 카드만) = undefined 면 사진 줄 없음, "" = '사진 붙이기' 단추, JPG base64 = 작은 미리 보기 + '떼기'(2026-11-22 플레이어 신고 #10, 서버 BugShot).
+  //     단추 = go.OnHtmlFeedbackPhoto(글)·OnHtmlFeedbackPhotoClear(글) — 카드를 닫고 게임이 사진 고르기(RoBugShotPick)를 띄운 뒤 다시 연다
+  $RoTextCard: function (title, ph, text, go, okM, closeM, MAX, okLabel, single, photo) {
     var old = document.getElementById("ro-fb-layer");
     if (old) { var ta0 = document.getElementById("ro-fb-text"); if (ta0) ta0.focus({ preventScroll: true }); return; }   // 두 번 열기 막기
     if (!(MAX > 0)) MAX = 300;
@@ -3808,7 +3830,26 @@ mergeInto(LibraryManager.library, {
     var close = document.createElement("button");
     close.type = "button"; close.textContent = "닫기";
     close.style.cssText = "align-self:center;min-width:120px;font-size:17px;padding:9px 22px;border-radius:6px;border:1px solid var(--ro-ui-edge,#C9963F);background:#5a4636;color:#EBDDBC;font-weight:bold;";
-    card.appendChild(head); card.appendChild(ta); if (!single) card.appendChild(count); card.appendChild(send); card.appendChild(close);
+    var shot = null;
+    if (typeof photo === "string") {
+      shot = document.createElement("div");
+      shot.style.cssText = "display:flex;align-items:center;gap:10px;";
+      var sb = document.createElement("button"); sb.type = "button";
+      sb.style.cssText = "flex:1;font-size:16px;padding:9px 12px;border-radius:6px;border:1px dashed var(--ro-ui-edge,#C9963F);background:#3d2c20;color:#EBDDBC;font-weight:bold;";
+      if (photo.length) {
+        var im = document.createElement("img"); im.src = "data:image/jpeg;base64," + photo;
+        im.style.cssText = "width:64px;height:64px;object-fit:cover;border-radius:4px;border:1px solid var(--ro-ui-edge,#C9963F);";
+        var lb = document.createElement("div"); lb.textContent = "사진 1장 붙음"; lb.style.cssText = "flex:1;font-size:15px;color:#cdb68a;";
+        sb.textContent = "떼기"; sb.style.flex = "0 0 auto"; sb.style.minWidth = "80px";
+        shot.appendChild(im); shot.appendChild(lb); shot.appendChild(sb);
+        sb.onclick = function () { finish("OnHtmlFeedbackPhotoClear"); };
+      } else {
+        sb.textContent = "📷 사진 붙이기";
+        shot.appendChild(sb);
+        sb.onclick = function () { finish("OnHtmlFeedbackPhoto"); };
+      }
+    }
+    card.appendChild(head); card.appendChild(ta); if (!single) card.appendChild(count); if (shot) card.appendChild(shot); card.appendChild(send); card.appendChild(close);
     layer.appendChild(card);
     document.body.appendChild(layer);
     // 여는 터치 뒤에 따라오는 click 이 바로 새 카드(바깥 = 닫기)에 떨어지지 않게 잠깐 누름을 막는다
@@ -3889,8 +3930,9 @@ mergeInto(LibraryManager.library, {
     }, 450);
   },
   RoFeedbackOpen__deps: ["$RoTextCard"],
-  RoFeedbackOpen: function (titlePtr, placeholderPtr, textPtr, goPtr) {
-    RoTextCard(UTF8ToString(titlePtr), UTF8ToString(placeholderPtr), UTF8ToString(textPtr), UTF8ToString(goPtr), "OnHtmlFeedback", "OnHtmlFeedbackClose", 300, "보내기", 0);
+  RoFeedbackOpen: function (titlePtr, placeholderPtr, textPtr, goPtr, photoPtr) {
+    var photo = UTF8ToString(photoPtr);   // "-" = 사진 못 붙임(줄 숨김)
+    RoTextCard(UTF8ToString(titlePtr), UTF8ToString(placeholderPtr), UTF8ToString(textPtr), UTF8ToString(goPtr), "OnHtmlFeedback", "OnHtmlFeedbackClose", 300, "보내기", 0, photo === "-" ? undefined : photo);
   },
   // 같은 카드를 다른 창이 쓸 때 — 알릴 메서드 이름·글자 수·확인 글자·한 줄 여부를 정한다(채널 '이름으로 찾기')
   RoTextOpen__deps: ["$RoTextCard"],
@@ -3924,7 +3966,15 @@ mergeInto(LibraryManager.library, {
   var bar = document.createElement("div"); bar.id = "ro-pre-bar"; bar.setAttribute("aria-live", "polite");
   bar.style.cssText = "position:fixed;left:50%;top:max(8px,env(safe-area-inset-top));transform:translateX(-50%);z-index:2147482000;padding:4px 12px;border-radius:99px;background:#000a;color:#f3d5a0;font:700 12px/1.4 'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;pointer-events:none;white-space:nowrap";
   var tick = setInterval(function () {
-    if (window.__roUnityReady || pre.handed || window.__roInWorld) { clearInterval(tick); bar.remove(); return; }
+    if (window.__roUnityReady || pre.handed || window.__roInWorld) {
+      clearInterval(tick); bar.remove();
+      if (pre.keepBusy) {   // 저장 로그인 길 — 엔진이 켜지면 우리 로딩 화면을 걷어 유니티 쪽(소환진·입장)을 가리지 않게. 그새 C# 가 카드를 띄웠으면 그대로
+        pre.keepBusy = 0;
+        var u = RoEntryUI(); u.hideBusy();
+        if (u.root && !document.getElementById("ro-name-card")) { u.root.remove(); u.root = u.top = null; }
+      }
+      return;
+    }
     var p = Math.round((window.__roLoadPct || 0) * 100);
     bar.textContent = p >= 100 ? "게임 준비 마무리 중…" : "게임 받는 중 " + p + "%";
   }, 250);
@@ -3933,5 +3983,12 @@ mergeInto(LibraryManager.library, {
     pre.opened = 1; document.body.appendChild(bar);
     var name = ""; try { name = localStorage.getItem("ro_login_name") || ""; } catch (e) {}
     RoLoginOpen("", "", name ? 0 : 4);   // 처음 온 기기(저장된 이름 없음) = 신규 큰 버튼 카드(C# tone 4 와 같은 뜻)
+  };
+  // 저장 로그인(로그인 유지 열쇠 있음 — 카드 없이 자동 접속) 길(2026-11-22 QA v0.1.165 "기본 로고 + 흰 막대만 보인다") — 카드 대신
+  //   우리 로딩 화면(포링 + Loading…)과 '게임 받는 중 n%' 띠만. 엔진이 켜지면 위 tick 이 걷는다(그다음은 C#·유니티 화면)
+  pre.openKeep = function () {
+    if (pre.opened || pre.handed || window.__roUnityReady) return;
+    pre.opened = 1; pre.keepBusy = 1; document.body.appendChild(bar);
+    RoEntryUI().busy("게임을 준비하고 있습니다");
   };
 })();
