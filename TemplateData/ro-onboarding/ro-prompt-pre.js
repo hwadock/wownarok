@@ -1007,21 +1007,23 @@ mergeInto(LibraryManager.library, {
     };
     // 이름 + 비밀번호(숫자 4자리) 두 칸 — 로그인 카드·새로 시작이 같이 쓴다. { name, pin, check() = 오류 글(없으면 "") }
     // 비밀번호 숫자 4칸(2026-11-09 사용자 "비번도 4자리면 그냥 4칸으로") — 진짜 입력칸은 투명하게 4칸 위에 덮어 키보드·붙여넣기·자동 채움은 그대로. 돌려주는 함수 = 칸 다시 칠하기
-    c.pinBoxes = function (inp, height) {
+    // 2026-11-23 비밀번호 숫자 8자리(사용자, 시안 C안 '한 칸 입력' — RO_server Concept/server_dash/pin8/mock.html 값 그대로): 긴 칸 하나에 점 len 개(빈 자리는 고리) + 오른쪽 'n/len' + 눈 버튼
+    c.pinBoxes = function (inp, height, len) {
+      len = len || 8;
       var pinBox = document.createElement("div");
-      pinBox.style.cssText = "position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) 40px;gap:10px;margin:12px 0";   // 맨 오른쪽 = 눈 버튼
+      pinBox.style.cssText = "position:relative;display:grid;grid-template-columns:minmax(0,1fr) 40px;gap:10px;margin:12px 0";   // 맨 오른쪽 = 눈 버튼
       inp.before(pinBox); pinBox.appendChild(inp); inp.classList.add("ro-pin");
-      // 2026-11-11 사용자 "비번 화면이 가끔 4칸이 아니라 텍스트 입력칸으로 보인다" — 저장된 비번 자동 채움(크롬 :-webkit-autofill 은 배경·글자색을 브라우저 !important 로 칠해
-      //   투명하게 둔 입력칸이 파란·노란 글상자로 4칸을 덮었다), 아이폰 사파리 '강력한 암호' 노란 칸·열쇠 단추도 같은 식. → 입력칸 자체를 opacity 0 으로(누르기·키보드·붙여넣기·자동 채움은 그대로)
+      // 2026-11-11 사용자 "비번 화면이 가끔 칸이 아니라 텍스트 입력칸으로 보인다" — 저장된 비번 자동 채움·아이폰 '강력한 암호' 노란 칸이 그림 칸을 덮었다 → 입력칸 자체를 opacity 0 으로(누르기·키보드·붙여넣기·자동 채움은 그대로)
       inp.style.cssText = "position:absolute;inset:0;width:100%;height:100%;box-sizing:border-box;border:0;background:transparent;color:transparent;caret-color:transparent;z-index:2;font-size:28px;outline:none;letter-spacing:0;opacity:0;-webkit-appearance:none;appearance:none";
+      var one = document.createElement("span"); one.setAttribute("aria-hidden", "true");
+      one.style.cssText = "display:flex;align-items:center;height:" + (height || 58) + "px;border:3px solid #b47a3d;border-radius:14px;background:linear-gradient(#28150d,#472717);box-shadow:inset 0 3px 6px #0008;padding:0 12px 0 14px;min-width:0;pointer-events:none;transition:border-color .12s";
+      var dotRow = document.createElement("span"); dotRow.style.cssText = "flex:1;display:flex;align-items:center;justify-content:space-between;padding-right:12px";
       var dots = [];
-      for (var i = 0; i < 4; i++) {
-        var dot = document.createElement("span"); dot.setAttribute("aria-hidden", "true");
-        dot.style.cssText = "display:flex;align-items:center;justify-content:center;height:" + (height || 72) + "px;border:3px solid #b47a3d;border-radius:14px;background:linear-gradient(#28150d,#472717);box-shadow:inset 0 3px 6px #0008;color:#fff1cd;font-size:28px;pointer-events:none;transition:border-color .12s";
-        pinBox.appendChild(dot); dots.push(dot);
-      }
+      for (var i = 0; i < len; i++) { var dot = document.createElement("span"); dotRow.appendChild(dot); dots.push(dot); }
+      var cnt = document.createElement("span"); cnt.style.cssText = "flex:none;font-size:14px;font-weight:800;color:#e7c99d;padding-left:10px;border-left:2px solid #b47a3d66";
+      one.appendChild(dotRow); one.appendChild(cnt); pinBox.appendChild(one);
       // 눈 버튼(2026-11-19 사용자 "눈 뜨기 버튼으로 누르는 비번을 보이게 하는 옵션도 넣자") — 기본은 가림, 누르면 숫자가 보이고 다시 누르면 가림.
-      //   입력칸은 그대로 password(투명)라 4칸 글자만 바뀐다. pointerdown·mousedown 을 막아 휴대폰 키보드가 닫히지 않게(포커스 유지). 탭을 떠나면(document.hidden)·단계가 바뀌면(paint.hide) 다시 가림
+      //   입력칸은 그대로 password(투명)라 칸 안 글자만 바뀐다. pointerdown·mousedown 을 막아 휴대폰 키보드가 닫히지 않게(포커스 유지). 탭을 떠나면(document.hidden)·단계가 바뀌면(paint.hide) 다시 가림
       var shown = false, eye = document.createElement("button"); eye.type = "button";
       eye.style.cssText = "position:relative;z-index:3;align-self:center;width:40px;height:40px;padding:0;border:0;border-radius:50%;background:#fff2d11a;color:#e7c99d;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent";
       var eyeOpen = "<svg width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z'/><circle cx='12' cy='12' r='3'/></svg>";
@@ -1032,18 +1034,20 @@ mergeInto(LibraryManager.library, {
       eye.onclick = function (e) { e.preventDefault(); shown = !shown; syncEye(); paint(); };
       pinBox.appendChild(eye); syncEye();
       var paint = function () {
-        var focused = document.activeElement === inp;
+        var n = inp.value.length;
+        one.style.borderColor = document.activeElement === inp ? "#ffdb75" : "#b47a3d";
         dots.forEach(function (dot, i) {
-          dot.textContent = i < inp.value.length ? (shown ? inp.value.charAt(i) : "●") : "";
-          dot.style.borderColor = focused && i === Math.min(inp.value.length, 3) ? "#ffdb75" : "#b47a3d";   // 다음에 칠 칸을 밝게
+          if (i < n && shown) { dot.textContent = inp.value.charAt(i); dot.style.cssText = "width:13px;height:13px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff1cd"; }
+          else { dot.textContent = ""; dot.style.cssText = i < n ? "width:13px;height:13px;border-radius:50%;background:#fff1cd" : "width:13px;height:13px;border-radius:50%;box-sizing:border-box;border:2px solid #b47a3d;opacity:.8"; }
         });
+        cnt.innerHTML = "<b style='color:#ffdb75'>" + n + "</b>/" + len;
       };
       inp.addEventListener("focus", paint); inp.addEventListener("blur", paint);
-      // 자동 채움은 input 이벤트 없이 값이 들어올 때가 있어 값이 바뀌면 칸을 다시 칠한다(숫자만 4자리로)
+      // 자동 채움은 input 이벤트 없이 값이 들어올 때가 있어 값이 바뀌면 칸을 다시 칠한다(숫자만 len 자리로)
       var last = inp.value, watch = setInterval(function () {
         if (!inp.isConnected) { clearInterval(watch); return; }
         if (shown && document.hidden) { shown = false; syncEye(); paint(); }
-        if (inp.value !== last) { var v = inp.value.replace(/[^0-9]/g, "").slice(0, 4); if (v !== inp.value) inp.value = v; last = inp.value; paint(); }
+        if (inp.value !== last) { var v = inp.value.replace(/[^0-9]/g, "").slice(0, len); if (v !== inp.value) inp.value = v; last = inp.value; paint(); }
       }, 300);
       paint();
       paint.hide = function () { shown = false; syncEye(); paint(); };
@@ -1057,15 +1061,16 @@ mergeInto(LibraryManager.library, {
       // 처음 들어와 게임이 임시로 붙인 "모험가123" 은 채우지 않는다 — 흐린 안내 글자만 보이고, 본명을 적도록 유도한다. 지난번에 쓴 이름은 그대로 채움
       f.name.value = (defName && !/^모험가[0-9]+$/.test(defName)) ? defName : "";
       f.name.placeholder = "본명을 적으면 좋아요";
-      f.pin = c.input("비밀번호 (숫자 4자리)", onDone);
-      f.pin.type = "password"; f.pin.maxLength = 4; f.pin.setAttribute("inputmode", "numeric"); f.pin.setAttribute("pattern", "[0-9]*");
-      f.pin.setAttribute("aria-label", "비밀번호 숫자 4자리");
+      f.pin = c.input("비밀번호 (숫자 8자리)", onDone);
+      f.pin.type = "password"; f.pin.maxLength = 8; f.pin.setAttribute("inputmode", "numeric"); f.pin.setAttribute("pattern", "[0-9]*");
+      f.pin.setAttribute("aria-label", "비밀번호 숫자 8자리");
       var paintPin = c.pinBoxes(f.pin, 58); f.pinPaint = paintPin;
-      f.pin.oninput = function () { var v = f.pin.value.replace(/[^0-9]/g, "").slice(0, 4); if (v !== f.pin.value) f.pin.value = v; paintPin(); if (err.textContent) err.textContent = ""; };
+      f.pin.oninput = function () { var v = f.pin.value.replace(/[^0-9]/g, "").slice(0, 8); if (v !== f.pin.value) f.pin.value = v; paintPin(); if (err.textContent) err.textContent = ""; };
       f.name.oninput = function () { if (err.textContent) err.textContent = ""; };
       f.check = function () {
         if (!f.name.value.trim().length) { f.name.focus(); return "이름을 적어 주세요"; }
-        if (!/^[0-9]{4}$/.test(f.pin.value)) { f.pin.focus(); return "비밀번호는 숫자 4자리예요"; }
+        // 있는 계정은 예전 4자리로도 들어온다(서버가 8자리로 바꾸라고 답함) — 새로 정하는 비번(f.pinNew)은 8자리만
+        if (!(f.pinNew ? /^[0-9]{8}$/ : /^([0-9]{4}|[0-9]{8})$/).test(f.pin.value)) { f.pin.focus(); return "비밀번호는 숫자 8자리예요"; }
         return "";
       };
       return f;
@@ -1620,6 +1625,8 @@ mergeInto(LibraryManager.library, {
     try { SendMessage("WebLowPower", "OnHtmlLowPower", "0"); } catch (_) {}   // 로그인 카드로 돌아오면 저전력 끔(새 캐릭터 사진 단계에서 켰을 수 있다)
     var defName = UTF8ToString(defNamePtr);
     var message = UTF8ToString(messagePtr);
+    if (!message && window.__roLoginNote) message = window.__roLoginNote;   // 새 캐릭터 카드가 돌려보내며 남긴 안내(없는 이름 + 4자리 비번, 2026-11-23)
+    window.__roLoginNote = null;
     var resume = null;   // 새 캐릭터 사진을 고르다 탭이 새로 열림(아이폰) — 5분 안이면 사진 단계로(RoNewFlow saveResume)
     try { resume = JSON.parse(sessionStorage.getItem("ro_photo_resume") || "null"); sessionStorage.removeItem("ro_photo_resume"); } catch (_) { resume = null; }
     if (resume && Date.now() - (resume.t || 0) < 5 * 60 * 1000) { SendMessage("BgmPlayer", "OnHtmlTitleMusic", "0"); RoNewFlow("", resume); return; }
@@ -1641,7 +1648,10 @@ mergeInto(LibraryManager.library, {
     c.wrap.appendChild(style);
     c.wrap.style.paddingTop = "max(18px,env(safe-area-inset-top))";
     var err = c.errLine(), f, submitting = false, pinFirst = null;
-    var pinReset = message === "비밀번호가 초기화되었습니다. 새로운 비밀번호를 입력해 주세요";   // AccountStore.ReasonPinReset — 새 비밀번호는 한 번 더 묻는다
+    // 예전 4자리 계정(2026-11-23 비밀번호 8자리) — 4자리로 맞게 들어오면 서버가 AccountStore.ReasonPinUpgrade 로 거절한다 → 새 8자리를 두 번 받아 "옛4자리>새8자리" 로 다시 보낸다(옛 비번 = 방금 보낸 __roSttAuth.p)
+    var oldPin = window.__roSttAuth && /^[0-9]{4}$/.test(window.__roSttAuth.p || "") ? window.__roSttAuth.p : "";
+    var pinUpgrade = message === "비밀번호를 숫자 8자리로 바꿔 주세요. 새 비밀번호를 입력해 주세요" && !!oldPin;
+    var pinReset = pinUpgrade || message === "비밀번호가 초기화되었습니다. 새로운 비밀번호를 입력해 주세요";   // AccountStore.ReasonPinReset — 새 비밀번호는 한 번 더 묻는다
     var setErr = function (t) { err.textContent = t; err.style.color = "#FF8A73"; if (t) c.shake(); };   // 점검 안내(금색) 뒤의 오류는 다시 빨강
     var saveName = function () { try { localStorage.setItem("ro_login_name", f.name.value.trim()); } catch (_) {} };
     var go = function () {
@@ -1650,22 +1660,22 @@ mergeInto(LibraryManager.library, {
       if (pinReset) {   // 한 번 넣으면 같은 칸에 한 번 더(2026-11-19 사용자 "비번 정할 때 두 번 묻자", "한 번 묻고 한 번 더 묻자, 맞는지") — 다르면 처음부터
         var pinLabel = f.pin.parentNode.previousSibling;
         if (pinFirst === null) { pinFirst = f.pin.value; f.pin.value = ""; f.pinPaint.hide(); pinLabel.textContent = "확인을 위해 한 번 더 입력해 주세요"; pinLabel.style.color = "#ffdb75"; err.textContent = ""; f.pin.focus(); return; }
-        if (f.pin.value !== pinFirst) { pinFirst = null; f.pin.value = ""; f.pinPaint.hide(); pinLabel.textContent = "새 비밀번호 (숫자 4자리)"; pinLabel.style.color = "#fff0c7"; setErr("비밀번호가 서로 달라요 — 처음부터 다시 입력해 주세요"); f.pin.focus(); return; }
+        if (f.pin.value !== pinFirst) { pinFirst = null; f.pin.value = ""; f.pinPaint.hide(); pinLabel.textContent = "새 비밀번호 (숫자 8자리)"; pinLabel.style.color = "#fff0c7"; setErr("비밀번호가 서로 달라요 — 처음부터 다시 입력해 주세요"); f.pin.focus(); return; }
       }
       submitting = true; saveName();
       f.name.blur(); f.pin.blur(); c.wrap.remove();
       RoEntryUI().busy("접속 중입니다");
       SendMessage("BgmPlayer", "OnHtmlTitleMusic", "0");   // 로그인 누르는 순간 첫 화면 곡을 서서히 끈다
-      window.__roSttAuth = { n: f.name.value.trim(), p: f.pin.value };   // 말로 보내기 받아쓰기 로그인 확인용 — 메모리에만(저장 안 함)
-      SendMessage("NetSession", "OnHtmlLogin", f.name.value.trim() + "\n" + f.pin.value + "\n" + (keepBox.checked ? "1" : "0"));
+      window.__roSttAuth = { n: f.name.value.trim(), p: f.pin.value };   // 말로 보내기 받아쓰기 로그인 확인용 — 메모리에만(저장 안 함). 8자리로 바꿀 땐 새 비번
+      SendMessage("NetSession", "OnHtmlLogin", f.name.value.trim() + "\n" + (pinUpgrade ? oldPin + ">" : "") + f.pin.value + "\n" + (keepBox.checked ? "1" : "0"));
     };
     f = c.namePin(defName, go, err);
     if (remembered) f.name.value = remembered.slice(0, 12);
     f.name.autocomplete = "username"; f.pin.autocomplete = "current-password";
     f.name.placeholder = "이름을 입력해 주세요";
-    // 비번 4자리를 다 넣으면 로그인 버튼과 같은 처리를 바로(2026-11-10 사용자 "비번 4자리 입력하면 바로 들어가지게") — 이름이 비었으면 이름 칸으로
+    // 비번 8자리를 다 넣으면 로그인 버튼과 같은 처리를 바로(2026-11-10 사용자 "비번 4자리 입력하면 바로 들어가지게" → 2026-11-23 8자리, 예전 4자리 계정은 버튼·엔터로) — 이름이 비었으면 이름 칸으로
     var pinInput = f.pin.oninput;
-    f.pin.oninput = function () { pinInput(); if (!submitting && f.pin.value.length === 4) { if (!f.name.value.trim().length) { setErr("이름을 적어 주세요"); f.name.focus(); } else go(); } };
+    f.pin.oninput = function () { pinInput(); if (!submitting && f.pin.value.length === 8) { if (!f.name.value.trim().length) { setErr("이름을 적어 주세요"); f.name.focus(); } else go(); } };
     f.name.oninput = function () { saveName(); if (err.textContent) err.textContent = ""; };
     // 비밀번호는 4칸(c.pinBoxes)이라 입력칸 꾸미기는 이름만 — 비밀번호 제목은 4칸 묶음 앞에 있다
     f.name.style.cssText += ";border:3px solid #a76c3b;border-radius:14px;background:linear-gradient(#28150d,#472717);color:#fff2d1;box-shadow:inset 0 3px 6px #0008,0 2px #1d100b;font-size:20px;padding:12px 14px";
@@ -1673,7 +1683,7 @@ mergeInto(LibraryManager.library, {
       label.style.cssText = "color:#fff0c7;font-size:16px;font-weight:800;margin:12px 0 7px;text-shadow:0 2px #301707";
     });
     if (pinReset) {   // 비번 초기화 뒤 새 비밀번호(2026-11-19) — 같은 4칸에 한 번 넣고 한 번 더(go 안에서)
-      f.pin.parentNode.previousSibling.textContent = "새 비밀번호 (숫자 4자리)";
+      f.pin.parentNode.previousSibling.textContent = "새 비밀번호 (숫자 8자리)"; f.pinNew = true;
       f.pin.autocomplete = "one-time-code";   // 아이폰 '강력한 암호' 노란 칸 막기(새 계정 비번 단계와 같음)
     }
     // 지우기 ✕ — 지난 이름이 미리 채워지니 한 번에 비울 수 있게(QA 2026-11-07 개선 3). 글자가 있을 때만 보인다(라벨 꾸민 뒤에 감싼다)
@@ -3116,8 +3126,8 @@ mergeInto(LibraryManager.library, {
       var err = c.errLine();
       var inp, inp2, paintPin, paintPin2;
       var go = function () {
-        if (!/^[0-9]{4}$/.test(inp.value)) { err.textContent = "비밀번호는 숫자 4자리예요"; c.shake(); inp.focus(); return; }
-        if (!/^[0-9]{4}$/.test(inp2.value)) { err.textContent = "아래 칸에 같은 비밀번호를 한 번 더 넣어 주세요"; c.shake(); inp2.focus(); return; }
+        if (!/^[0-9]{8}$/.test(inp.value)) { err.textContent = "비밀번호는 숫자 8자리예요"; c.shake(); inp.focus(); return; }
+        if (!/^[0-9]{8}$/.test(inp2.value)) { err.textContent = "아래 칸에 같은 비밀번호를 한 번 더 넣어 주세요"; c.shake(); inp2.focus(); return; }
         if (inp.value !== inp2.value) { inp2.value = ""; paintPin2.hide(); err.textContent = "서로 달라요 — 아래 칸을 다시 넣어 주세요"; c.shake(); inp2.focus(); return; }
         if (st.race !== 0 && st.race !== 1) { showRace(); return; }
         st.pin = inp.value; inp.blur(); inp2.blur();
@@ -3125,35 +3135,35 @@ mergeInto(LibraryManager.library, {
       };
       var pinInput = function (label, aria, onEnter) {
         var x = c.input(label, onEnter);
-        x.type = "password"; x.maxLength = 4; x.setAttribute("inputmode", "numeric"); x.setAttribute("pattern", "[0-9]*");
+        x.type = "password"; x.maxLength = 8; x.setAttribute("inputmode", "numeric"); x.setAttribute("pattern", "[0-9]*");
         x.autocomplete = "one-time-code";   // 아이폰 사파리가 '강력한 암호'(영문 섞인 긴 암호)를 제안해 노란 칸으로 채우지 않게
         x.setAttribute("aria-label", aria);
         return x;
       };
-      inp = pinInput("비밀번호 · 숫자 4자리", "비밀번호 숫자 4자리", function () { if (inp.value.length === 4) inp2.focus(); else go(); });
+      inp = pinInput("비밀번호 · 숫자 8자리", "비밀번호 숫자 8자리", function () { if (inp.value.length === 8) inp2.focus(); else go(); });
       if (inp.previousElementSibling) inp.previousElementSibling.remove();   // 첫 칸 위 라벨 없음(2026-11-16 사용자) — 제목이 대신
       inp.value = st.pin;
       paintPin = c.pinBoxes(inp, 64);
-      inp2 = pinInput("한 번 더 입력", "비밀번호 확인 숫자 4자리", go);
+      inp2 = pinInput("한 번 더 입력", "비밀번호 확인 숫자 8자리", go);
       inp2.value = st.pin;
       paintPin2 = c.pinBoxes(inp2, 64);
       var pinHint = document.createElement("div"); pinHint.textContent = "다음 접속 때 필요하니 꼭 기억해 주세요";
       pinHint.style.cssText = "color:#e7c99d;font-size:13px;line-height:1.6;margin:6px 0 12px"; c.card.appendChild(pinHint);
       var onType = function (x, paint, after) {
         x.oninput = function () {
-          var v = x.value.replace(/[^0-9]/g, "").slice(0, 4); if (v !== x.value) x.value = v; paint(); if (err.textContent) err.textContent = "";
-          if (after && v.length === 4) after();
+          var v = x.value.replace(/[^0-9]/g, "").slice(0, 8); if (v !== x.value) x.value = v; paint(); if (err.textContent) err.textContent = "";
+          if (after && v.length === 8) after();
         };
       };
-      onType(inp, paintPin, function () { if (inp2.value.length < 4) inp2.focus(); });   // 위 4칸을 다 넣으면 아래 칸으로
-      onType(inp2, paintPin2, function () { if (inp.value.length === 4) go(); });   // 아래 4칸까지 다 넣으면 '결정'을 안 눌러도 바로 다음(2026-11-22 사용자) — 다르면 go 가 아래 칸을 비우고 알린다
+      onType(inp, paintPin, function () { if (inp2.value.length < 8) inp2.focus(); });   // 위 4칸을 다 넣으면 아래 칸으로
+      onType(inp2, paintPin2, function () { if (inp.value.length === 8) go(); });   // 아래 4칸까지 다 넣으면 '결정'을 안 눌러도 바로 다음(2026-11-22 사용자) — 다르면 go 가 아래 칸을 비우고 알린다
       c.card.appendChild(err);
       var next = c.mainBtn("결정"); next.classList.add("ro-race-next");
       next.style.marginTop = "6px";
       next.onclick = go;
       c.card.appendChild(next);
       c.card.appendChild(c.stepBack(showName));   // 뒤로가기 = 3 이름
-      setTimeout(function () { (inp.value.length === 4 ? inp2 : inp).focus(); }, 50);
+      setTimeout(function () { (inp.value.length === 8 ? inp2 : inp).focus(); }, 50);
     };
 
     // 사진 단계를 마침(사진 넣음 / 사진 없이 진행) → NetSession.OnHtmlNewStart(데이터 모양 그대로) → 5 목소리 녹음(녹음만) → 6 프롤로그 → 7 확인(2026-11-10)
@@ -3161,7 +3171,7 @@ mergeInto(LibraryManager.library, {
     var afterPhoto = function () {
       stopCam();
       if ((!st.up && !st.noPhoto) || (st.race !== 0 && st.race !== 1)) { showRace(); return; }
-      if (!st.name || !/^[0-9]{4}$/.test(st.pin)) { showName(); return; }
+      if (!st.name || !/^[0-9]{8}$/.test(st.pin)) { showName(); return; }
       st.started = true; st.faceFirst = false;   // 얼굴 고르기에서 '사진으로 얼굴 만들기'로 돌아와도 예전 길(프롤로그 → 생성 확인)로
       if (st.noPhoto && !st.up) {
         window.__roSttAuth = { n: st.name, p: st.pin }; SendMessage("NetSession", "OnHtmlNewStart", JSON.stringify({ name: st.name, pin: st.pin, gender: st.gender, race: st.race, job: "", keep: RoKeepPref() }));
@@ -3681,7 +3691,7 @@ mergeInto(LibraryManager.library, {
       enterGame("preset:" + head, 100);
     };
 
-    if (resume && (resume.race === 0 || resume.race === 1) && /^[0-9]{4}$/.test(resume.pin || "") && resume.name) {
+    if (resume && (resume.race === 0 || resume.race === 1) && /^[0-9]{8}$/.test(resume.pin || "") && resume.name) {
       st.name = resume.name; st.pin = resume.pin; st.gender = resume.gender === 1 ? 1 : 0; st.race = resume.race;
       st.detail = resume.detail === 1 ? 1 : 0; st.acc = Array.isArray(resume.acc) ? resume.acc : [];
       document.documentElement.dataset.roUiRace = st.race === 1 ? "orc" : "human";
@@ -3699,11 +3709,18 @@ mergeInto(LibraryManager.library, {
   RoNewCharOpen__deps: ["$RoCard", "$RoEntryUI"],
   RoNewCharOpen: function (defRace, defGender) {
     RoEntryUI().cancel();
+    // 새 계정 비밀번호는 숫자 8자리만(2026-11-23) — 로그인 카드에 없는 이름 + 예전 4자리를 넣고 왔으면 만들지 않고 로그인 카드로 돌려보내 8자리를 다시 받는다(서버는 4자리 새 계정을 거절한다)
+    var auP = (window.__roSttAuth && window.__roSttAuth.p) || "";
+    if (auP && !/^[0-9]{8}$/.test(auP)) {
+      window.__roLoginNote = "새 계정 비밀번호는 숫자 8자리예요";
+      setTimeout(function () { SendMessage("NetSession", "OnHtmlNewCharBack", ""); }, 0);   // C# 호출 안에서 바로 되부르지 않게 한 박자 뒤
+      return;
+    }
     var race = defRace === 1 ? 1 : 0;
     var gender = defGender === 1 ? 1 : 0;
     var c = RoCard(2);
     var showGender, showRace, showPin;
-    var pin0 = window.__roSttAuth && /^[0-9]{4}$/.test(window.__roSttAuth.p || "") ? window.__roSttAuth.p : "";   // 로그인 카드에서 넣은 비번(없으면 확인 단계 없이)
+    var pin0 = window.__roSttAuth && /^[0-9]{8}$/.test(window.__roSttAuth.p || "") ? window.__roSttAuth.p : "";   // 로그인 카드에서 넣은 비번(없으면 확인 단계 없이)
     var steps = pin0 ? 3 : 2;
     var backToLogin = function () { c.wrap.remove(); RoEntryUI().cancel(); SendMessage("NetSession", "OnHtmlNewCharBack", ""); };
     showGender = function () {
@@ -3740,15 +3757,15 @@ mergeInto(LibraryManager.library, {
       c.anim();
       var err = c.errLine(), inp, paint;
       var go = function () {
-        if (!/^[0-9]{4}$/.test(inp.value)) { err.textContent = "비밀번호는 숫자 4자리예요"; c.shake(); inp.focus(); return; }
+        if (!/^[0-9]{8}$/.test(inp.value)) { err.textContent = "비밀번호는 숫자 8자리예요"; c.shake(); inp.focus(); return; }
         if (inp.value !== pin0) { err.textContent = "처음 넣은 비밀번호와 달라요 · 다시 넣어 주세요"; c.shake(); inp.value = ""; paint(); inp.focus(); return; }
         inp.blur(); showRace();
       };
       inp = c.input("비밀번호 확인 · 한 번 더", go);
-      inp.type = "password"; inp.maxLength = 4; inp.setAttribute("inputmode", "numeric"); inp.setAttribute("pattern", "[0-9]*"); inp.setAttribute("enterkeyhint", "next");
-      inp.autocomplete = "one-time-code"; inp.setAttribute("aria-label", "비밀번호 확인 숫자 4자리");
+      inp.type = "password"; inp.maxLength = 8; inp.setAttribute("inputmode", "numeric"); inp.setAttribute("pattern", "[0-9]*"); inp.setAttribute("enterkeyhint", "next");
+      inp.autocomplete = "one-time-code"; inp.setAttribute("aria-label", "비밀번호 확인 숫자 8자리");
       paint = c.pinBoxes(inp, 72);
-      inp.oninput = function () { var v = inp.value.replace(/[^0-9]/g, "").slice(0, 4); if (v !== inp.value) inp.value = v; paint(); if (err.textContent) err.textContent = ""; if (inp.value.length === 4) go(); };
+      inp.oninput = function () { var v = inp.value.replace(/[^0-9]/g, "").slice(0, 8); if (v !== inp.value) inp.value = v; paint(); if (err.textContent) err.textContent = ""; if (inp.value.length === 8) go(); };
       c.card.appendChild(err);
       var next = c.mainBtn("다음"); next.classList.add("ro-race-next"); next.style.marginTop = "6px"; next.onclick = go;
       c.card.appendChild(next);
