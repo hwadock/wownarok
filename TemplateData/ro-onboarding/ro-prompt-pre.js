@@ -2317,7 +2317,7 @@ mergeInto(LibraryManager.library, {
   //   장마다 나레이션 mp3 를 틀고 소리 길이 + 0.8초 뒤 다음 장(소리가 없거나 실패면 글 길이로 4~7초). 그림은 천천히 확대·이동(켄 번스), 장 전환 0.6초 크로스페이드.
   //   소리가 막히면(자동 재생 거절) '소리 켜기' 버튼 — 누르면 그 장부터 소리. 끝나면 done(). 돌려주는 함수 = 멈추고 지우기(흐름 취소 때).
   //   파일 = Assets/_RO/Net/WebUI/prologue/<human|orc>_<1~5>.jpg·.mp3 → 웹 TemplateData/ro-onboarding/prologue/(WebGLNoUnityLogo 가 복사). 없으면 어두운 그라데이션·글 길이 시간
-  $RoPrologue: function (race, done) {
+  $RoPrologue: function (race, done, hold) {   // hold = 새 캐릭터 흐름 — 끝나도 배경음을 끄지 않고 밤 전투 곡이 시작될 때까지 넘겨 둔다(window.__roPrologueHold, BgmPlayer 가 끈다 — 2026-11-22 사용자)
     var DIR = "TemplateData/ro-onboarding/prologue/";
     var PROLOGUE = {   // 임시 문구(UI 세션 2026-11-10, Concept/ui/prologue/prologue_draft.json) — 기획 문구가 오면 바꾼다. 그림 = GPT 2.6, 나레이션 = 사운드 세션
       human: [
@@ -2493,7 +2493,8 @@ mergeInto(LibraryManager.library, {
     };
     var finish = function () {
       if (finished) return;
-      finished = true; clearT(); stopAudio(); stopBgm(true);
+      finished = true; clearT(); stopAudio();
+      if (hold && bgm) { window.__roPrologueHold = bgm; bgm = null; } else stopBgm(true);   // 2026-11-22 사용자 "프롤로그 끝나고 마을 곡 말고 비장한 곡을 로딩 동안 계속, 밤 전투 곡이 시작되기 전까지"
       root.style.opacity = "0"; setTimeout(function () { root.remove(); }, 650);
       done();
     };
@@ -3145,7 +3146,7 @@ mergeInto(LibraryManager.library, {
         };
       };
       onType(inp, paintPin, function () { if (inp2.value.length < 4) inp2.focus(); });   // 위 4칸을 다 넣으면 아래 칸으로
-      onType(inp2, paintPin2, null);
+      onType(inp2, paintPin2, function () { if (inp.value.length === 4) go(); });   // 아래 4칸까지 다 넣으면 '결정'을 안 눌러도 바로 다음(2026-11-22 사용자) — 다르면 go 가 아래 칸을 비우고 알린다
       c.card.appendChild(err);
       var next = c.mainBtn("결정"); next.classList.add("ro-race-next");
       next.style.marginTop = "6px";
@@ -3166,10 +3167,10 @@ mergeInto(LibraryManager.library, {
         window.__roSttAuth = { n: st.name, p: st.pin }; SendMessage("NetSession", "OnHtmlNewStart", JSON.stringify({ name: st.name, pin: st.pin, gender: st.gender, race: st.race, job: "", keep: RoKeepPref() }));
         st.newStart = Promise.resolve();
       } else {
-        var race = st.race;
-        st.newStart = st.up.then(function (job) {   // 올리기는 실패해도 "" 로 끝난다(upload 의 catch) — 늦어도 upload 의 60초 시한
-          window.__roSttAuth = { n: st.name, p: st.pin }; SendMessage("NetSession", "OnHtmlNewStart", JSON.stringify({ name: st.name, pin: st.pin, gender: st.gender, race: race, job: job || "", keep: RoKeepPref() }));
-        });
+        // 2026-11-22 사용자 "프롤로그 보고 계속 로딩 화면만" — 예전엔 사진 올리기 응답(job)을 받은 뒤에야 보내, 응답이 늦거나 얼굴 줄을 서면 접속 신호(OnHtmlFace)가 그동안 못 나갔다.
+        //   게임은 job 을 쓰지 않으니(생성 얼굴은 접속 뒤 OnHtmlFaceLate) 올리기를 기다리지 않고 바로 보낸다
+        window.__roSttAuth = { n: st.name, p: st.pin }; SendMessage("NetSession", "OnHtmlNewStart", JSON.stringify({ name: st.name, pin: st.pin, gender: st.gender, race: st.race, job: "", keep: RoKeepPref() }));
+        st.newStart = Promise.resolve();
       }
       if (st.mode === "preset") { startVoiceWatch(""); st.faceFirst = true; toConfirm(); return; }   // 랜덤 캐릭터 = 목소리도 기본, 프롤로그 뒤 무작위 머리로 바로 접속
       if (st.mode === "custom") { recordVoice(); return; }   // 나만의 캐릭터 = 사진 다음 바로 녹음
@@ -3215,7 +3216,7 @@ mergeInto(LibraryManager.library, {
     // 6 프롤로그 → 7 확인. 사진이 있으면 생성 진행(wait)부터, 없으면 바로 기본 얼굴 확인
     var showPrologue = function () {
       entry.hideBusy();
-      st.prologueStop = RoPrologue(st.race, function () { st.prologueStop = null; st.prologueSeen = true; toConfirm(); });
+      st.prologueStop = RoPrologue(st.race, function () { st.prologueStop = null; st.prologueSeen = true; toConfirm(); }, true);
     };
     var toConfirm = function () {
       if (st.up && !st.noPhoto) { autoEnter(); return; }   // 2026-11-21 기획 확정 — 사진을 넣었으면 고르기 없이 바로 접속(생성 얼굴은 접속 뒤에 끼움)
@@ -3528,7 +3529,7 @@ mergeInto(LibraryManager.library, {
     var enterGame = function (face, scale) {
       if (st.faceFirst && !st.prologueSeen) {
         st.prologueSeen = true; entry.hideBusy();
-        st.prologueStop = RoPrologue(st.race, function () { st.prologueStop = null; enterGame(face, scale); });
+        st.prologueStop = RoPrologue(st.race, function () { st.prologueStop = null; enterGame(face, scale); }, true);
         return;
       }
       var vo = st.voice; voiceUi = null; stopVoiceWatch();
@@ -3800,7 +3801,7 @@ mergeInto(LibraryManager.library, {
   //   RoTextCard = 같은 카드를 여러 창이 쓰도록 뺀 몸통(2026-11-21 채널 '이름으로 찾기'도 씀) — okM·closeM = 알릴 메서드 이름, single = 한 줄 입력(엔터 = 확인, 글자 수 표시 없음).
   //   photo(의견 카드만) = undefined 면 사진 줄 없음, "" = '사진 붙이기' 단추, JPG base64 = 작은 미리 보기 + '떼기'(2026-11-22 플레이어 신고 #10, 서버 BugShot).
   //     단추 = go.OnHtmlFeedbackPhoto(글)·OnHtmlFeedbackPhotoClear(글) — 카드를 닫고 게임이 사진 고르기(RoBugShotPick)를 띄운 뒤 다시 연다
-  $RoTextCard: function (title, ph, text, go, okM, closeM, MAX, okLabel, single, photo) {
+  $RoTextCard: function (title, ph, text, go, okM, closeM, MAX, okLabel, single, photo, minLen, note) {   // minLen·note = 의견 창만(최소 글자 수·제목 아래 안내 줄, 2026-11-22 QA v0.1.178)
     var old = document.getElementById("ro-fb-layer");
     if (old) { var ta0 = document.getElementById("ro-fb-text"); if (ta0) ta0.focus({ preventScroll: true }); return; }   // 두 번 열기 막기
     if (!(MAX > 0)) MAX = 300;
@@ -3849,7 +3850,10 @@ mergeInto(LibraryManager.library, {
         sb.onclick = function () { finish("OnHtmlFeedbackPhoto"); };
       }
     }
-    card.appendChild(head); card.appendChild(ta); if (!single) card.appendChild(count); if (shot) card.appendChild(shot); card.appendChild(send); card.appendChild(close);
+    var noteEl = null, warn = null;
+    if (note) { noteEl = document.createElement("div"); noteEl.innerHTML = note; noteEl.style.cssText = "text-align:center;font-size:15px;color:#EBDDBC;word-break:keep-all;margin-top:-4px;"; }   // 우리 코드가 만든 고정 글(10골드 색)
+    if (minLen > 0) { warn = document.createElement("div"); warn.style.cssText = "text-align:center;font-size:15px;font-weight:bold;color:#FF7A5C;min-height:0;"; }
+    card.appendChild(head); if (noteEl) card.appendChild(noteEl); card.appendChild(ta); if (!single) card.appendChild(count); if (warn) card.appendChild(warn); if (shot) card.appendChild(shot); card.appendChild(send); card.appendChild(close);
     layer.appendChild(card);
     document.body.appendChild(layer);
     // 여는 터치 뒤에 따라오는 click 이 바로 새 카드(바깥 = 닫기)에 떨어지지 않게 잠깐 누름을 막는다
@@ -3894,6 +3898,7 @@ mergeInto(LibraryManager.library, {
     window.__roFeedbackClose = function () { finish(null); };   // RoFeedbackClose(게임이 닫음) = 알림 없이 치우기
     send.onclick = function () {
       if (!ta.value.trim().length) { ta.focus({ preventScroll: true }); return; }
+      if (minLen > 0 && ta.value.trim().length < minLen) { if (warn) warn.textContent = "조금 더 자세히 적어 주세요 (" + minLen + "자 이상)"; ta.focus({ preventScroll: true }); return; }   // 카드 안에서 바로 거절(토스트는 다시 열린 카드에 덮였다)
       finish(okM);
     };
     close.onclick = function () { finish(closeM); };
@@ -3930,9 +3935,10 @@ mergeInto(LibraryManager.library, {
     }, 450);
   },
   RoFeedbackOpen__deps: ["$RoTextCard"],
-  RoFeedbackOpen: function (titlePtr, placeholderPtr, textPtr, goPtr, photoPtr) {
+  RoFeedbackOpen: function (titlePtr, placeholderPtr, textPtr, goPtr, photoPtr, minLen, notePtr) {
     var photo = UTF8ToString(photoPtr);   // "-" = 사진 못 붙임(줄 숨김)
-    RoTextCard(UTF8ToString(titlePtr), UTF8ToString(placeholderPtr), UTF8ToString(textPtr), UTF8ToString(goPtr), "OnHtmlFeedback", "OnHtmlFeedbackClose", 300, "보내기", 0, photo === "-" ? undefined : photo);
+    RoTextCard(UTF8ToString(titlePtr), UTF8ToString(placeholderPtr), UTF8ToString(textPtr), UTF8ToString(goPtr), "OnHtmlFeedback", "OnHtmlFeedbackClose", 300, "보내기", 0, photo === "-" ? undefined : photo,
+      minLen, notePtr ? UTF8ToString(notePtr) : "");
   },
   // 같은 카드를 다른 창이 쓸 때 — 알릴 메서드 이름·글자 수·확인 글자·한 줄 여부를 정한다(채널 '이름으로 찾기')
   RoTextOpen__deps: ["$RoTextCard"],
