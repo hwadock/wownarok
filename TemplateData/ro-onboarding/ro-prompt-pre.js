@@ -530,6 +530,7 @@ mergeInto(LibraryManager.library, {
       label.appendChild(document.createTextNode("Loading"));
       for (var i = 0; i < 3; i++) { var d = document.createElement("span"); d.className = "dot"; d.textContent = "."; label.appendChild(d); }
       panel.appendChild(stage); panel.appendChild(label); ui.root.appendChild(panel);
+      if (ui.prog) ui.progress(ui.prog.p, ui.prog.label);   // 받는 중에 로딩 화면이 새로 뜨면 막대를 이 화면으로 옮긴다
       // 너무 오래 걸리면 빠져나갈 길(2026-11-11 사용자 아이폰 v.0.079 "'접속 중입니다'만 뜨고 안 들어감, 새 버전 받으란 화면도 없음") —
       //   월드 열기·접속이 멈춰도 이 화면엔 끝이 없었다. 45초가 지나도 같은 판이면 '다시 시도' 버튼: 주소에 새 값을 붙여(?r=) index.html·옛 캐시까지 새로 받는다
       setTimeout(function () {
@@ -545,7 +546,33 @@ mergeInto(LibraryManager.library, {
       }, 45000);
     };
     ui.cancel = function () { if (ui.cleanup) { var fn = ui.cleanup; ui.cleanup = null; fn(); } ui.hideBusy(); };
-    ui.ready = function () { window.__roInWorld = 1; if (window.RoOnboardingFx) window.RoOnboardingFx.stop(); ui.cancel(); if (ui.root) ui.root.remove(); ui.root = ui.top = null; var dock = document.getElementById("ro-install-dock"); if (dock) dock.remove(); };
+    // 월드·첫 존 묶음 받는 진행률(2026-11-23 사용자 "진행률 표시" — 프롤로그 뒤 포링 로딩만 보여 멈춘 줄 알았다) — 게임이 RoLoadProgress(0~1, 글)로 알린다. p < 0 = 숨김.
+    //   포링 로딩 화면이 떠 있으면 그 아래에, 없으면(빛기둥 같은 게임 화면) 화면 아래쪽에 띄운다. 막대 색 = BootLoader 의 금빛 막대와 같게
+    // 유료 생성(얼굴·목소리) 요청에 기기 번호 머리글(2026-11-23 서버 세션 — 기기당 제한) — 게임이 RoDeviceSet 으로 알려 준 값(NetSession.DeviceId), 엔진이 뜨기 전이면 지난번에 남긴 값. 없으면 안 붙인다
+    ui.devHeaders = function (h) {
+      var d = ""; try { d = window.__roDevice || localStorage.getItem("ro_device_id") || ""; } catch (_) {}
+      if (/^[0-9a-f]{32}$/.test(d)) h["X-RO-Device"] = d;
+      return h;
+    };
+    ui.progress = function (p, label) {
+      if (!(p >= 0)) { ui.prog = null; if (ui.progEl) ui.progEl.remove(); ui.progEl = null; return; }
+      p = Math.min(1, p); ui.prog = { p: p, label: label || "" };
+      var host = ui.busyPanel && ui.busyPanel.isConnected ? ui.busyPanel : document.body;
+      var el = ui.progEl;
+      if (!el || !el.isConnected || el.parentNode !== host) {
+        if (el) el.remove();
+        el = ui.progEl = document.createElement("div"); el.id = "ro-load-prog"; el.setAttribute("aria-hidden", "true");
+        el.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;color:#EBDDBC;font:700 13px/1.3 'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;text-shadow:0 2px 0 #0008" +
+          (host === document.body ? ";position:fixed;left:50%;bottom:max(12vh,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:2147481000" : ";margin-top:4px");
+        el.innerHTML = "<div style='box-sizing:border-box;width:min(64vw,260px);height:14px;padding:2px;border:2px solid #C9963F;border-radius:99px;background:#291a0f;box-shadow:0 2px 6px #0008'>" +
+          "<div style='height:100%;width:0;border-radius:99px;background:linear-gradient(#ffe38c,#f2b540);transition:width .25s linear'></div></div><div></div>";
+        var again = host !== document.body ? host.querySelector("button") : null;   // 포링 화면의 '다시 시도' 버튼보다 위에
+        if (again) host.insertBefore(el, again); else host.appendChild(el);
+      }
+      el.firstChild.firstChild.style.width = (p * 100).toFixed(1) + "%";
+      el.lastChild.textContent = (ui.prog.label ? ui.prog.label + " " : "") + Math.round(p * 100) + "%";
+    };
+    ui.ready = function () { ui.progress(-1); window.__roInWorld = 1; if (window.RoOnboardingFx) window.RoOnboardingFx.stop(); ui.cancel(); if (ui.root) ui.root.remove(); ui.root = ui.top = null; var dock = document.getElementById("ro-install-dock"); if (dock) dock.remove(); };
     window.__roEntryUI = ui;
     return ui;
   },
@@ -586,6 +613,15 @@ mergeInto(LibraryManager.library, {
     for (var i = 0; i < 3; i++) { var d = document.createElement("span"); d.className = "dot"; d.textContent = "."; label.appendChild(d); }
     c.appendChild(stage); c.appendChild(label); document.body.appendChild(c);
   },
+  // 월드·존 묶음 받는 진행률(게임 → 로딩 화면) — p 0~1, 음수면 숨김. 글 = "맵 받는 중" 같은 짧은 말(빈 값이면 %만)
+  // 게임 기기 번호(NetSession.DeviceId)를 카드 쪽에 알림 — 얼굴·목소리 생성 요청 머리글 X-RO-Device 에 쓴다. 다음 방문 때 엔진보다 먼저 뜨는 카드도 쓰게 남겨 둔다
+  RoDeviceSet: function (idPtr) {
+    var d = UTF8ToString(idPtr);
+    if (!/^[0-9a-f]{32}$/.test(d)) return;
+    window.__roDevice = d; try { localStorage.setItem("ro_device_id", d); } catch (_) {}
+  },
+  RoLoadProgress__deps: ["$RoEntryUI"],
+  RoLoadProgress: function (p, labelPtr) { RoEntryUI().progress(p, labelPtr ? UTF8ToString(labelPtr) : ""); },
   RoEntryReady__deps: ["$RoEntryUI"],
   RoEntryReady: function () {
     // 월드에 들어온 계정 이름을 로그인 카드 이름 칸용(ro_login_name)으로 남긴다(QA 새 유저 v153 "로그아웃 뒤 이름 칸에 예전 이름") —
@@ -1128,6 +1164,10 @@ mergeInto(LibraryManager.library, {
       dc.card.style.left = "11.5%"; dc.card.style.top = "40.5%"; dc.card.style.width = "77%"; dc.card.style.height = "37.2%";
       var title = dc.card.querySelector("h1");
       title.textContent = updateRequired === 3 ? "다른 곳에서 접속했습니다" : "연결이 끊겼습니다"; title.style.color = "#FFD966";
+      // 글 칸이 버튼 자리(77.66%) 바로 위까지라 제목 두 줄 + 본문 세 줄이면 버튼이 마지막 줄을 덮었다(QA v0.1.182) — 칸을 버튼 위 2% 에서 끝내고 글을 한 단계 작게·줄 간격 좁게
+      dc.card.style.height = "35%"; dc.card.style.overflow = "hidden";
+      title.style.fontSize = "clamp(20px,6.4vw,30px)"; title.style.lineHeight = "1.2";
+      if (d.message) { d.message.style.fontSize = "clamp(13px,3.9vw,17px)"; d.message.style.lineHeight = "1.45"; }
       var slot = document.createElement("button"); slot.type = "button"; slot.textContent = "다시 접속";
       slot.style.cssText = "position:absolute;left:29%;top:77.66%;width:42%;height:6.4%;box-sizing:border-box;padding:0;margin:0;border:3px solid #d7891b;border-top-color:#fff1a9;border-radius:999px;background:linear-gradient(#ffe78a,#ffc336 48%,#efa214);color:#452108;box-shadow:inset 0 2px #fff8,0 3px 0 #793b0d,0 5px 8px #0006;cursor:pointer;font-family:inherit;font-weight:900;font-size:clamp(19px,6vw,27px);line-height:1;white-space:nowrap;display:flex;align-items:center;justify-content:center";
       slot.onclick = function () {
@@ -1651,7 +1691,10 @@ mergeInto(LibraryManager.library, {
     // 예전 4자리 계정(2026-11-23 비밀번호 8자리) — 4자리로 맞게 들어오면 서버가 AccountStore.ReasonPinUpgrade 로 거절한다 → 새 8자리를 두 번 받아 "옛4자리>새8자리" 로 다시 보낸다(옛 비번 = 방금 보낸 __roSttAuth.p)
     var oldPin = window.__roSttAuth && /^[0-9]{4}$/.test(window.__roSttAuth.p || "") ? window.__roSttAuth.p : "";
     var pinUpgrade = message === "비밀번호를 숫자 8자리로 바꿔 주세요. 새 비밀번호를 입력해 주세요" && !!oldPin;
-    var pinReset = pinUpgrade || message === "비밀번호가 초기화되었습니다. 새로운 비밀번호를 입력해 주세요";   // AccountStore.ReasonPinReset — 새 비밀번호는 한 번 더 묻는다
+    // 비밀번호 초기화 = 임시 비밀번호 방식(2026-11-23 서버 세션 보안 결정) — 운영자에게 받은 임시 8자리로 로그인하면 서버가 ReasonPinReset 으로 거절한다 →
+    //   새 8자리를 두 번 받아 "임시8자리>새8자리" 로 다시 보낸다(임시 비번 = 방금 보낸 __roSttAuth.p). 방금 보낸 8자리가 없으면 보통 로그인 카드로(임시 비번부터 다시 넣게)
+    var tempPin = message === "비밀번호가 초기화되었습니다. 새로운 비밀번호를 입력해 주세요" && window.__roSttAuth && /^[0-9]{8}$/.test(window.__roSttAuth.p || "") ? window.__roSttAuth.p : "";
+    var pinReset = pinUpgrade || !!tempPin;   // AccountStore.ReasonPinReset — 새 비밀번호는 한 번 더 묻는다
     var setErr = function (t) { err.textContent = t; err.style.color = "#FF8A73"; if (t) c.shake(); };   // 점검 안내(금색) 뒤의 오류는 다시 빨강
     var saveName = function () { try { localStorage.setItem("ro_login_name", f.name.value.trim()); } catch (_) {} };
     var go = function () {
@@ -1667,7 +1710,7 @@ mergeInto(LibraryManager.library, {
       RoEntryUI().busy("접속 중입니다");
       SendMessage("BgmPlayer", "OnHtmlTitleMusic", "0");   // 로그인 누르는 순간 첫 화면 곡을 서서히 끈다
       window.__roSttAuth = { n: f.name.value.trim(), p: f.pin.value };   // 말로 보내기 받아쓰기 로그인 확인용 — 메모리에만(저장 안 함). 8자리로 바꿀 땐 새 비번
-      SendMessage("NetSession", "OnHtmlLogin", f.name.value.trim() + "\n" + (pinUpgrade ? oldPin + ">" : "") + f.pin.value + "\n" + (keepBox.checked ? "1" : "0"));
+      SendMessage("NetSession", "OnHtmlLogin", f.name.value.trim() + "\n" + (pinUpgrade ? oldPin + ">" : tempPin ? tempPin + ">" : "") + f.pin.value + "\n" + (keepBox.checked ? "1" : "0"));
     };
     f = c.namePin(defName, go, err);
     if (remembered) f.name.value = remembered.slice(0, 12);
@@ -2188,7 +2231,7 @@ mergeInto(LibraryManager.library, {
       setActions([]);
       var ctrl = new AbortController(), upTimer = resumeJob ? 0 : later(function () { ctrl.abort(); }, 30000);
       if (!resumeJob) getBase().then(function (b) {
-        return fetch(b + "/voice/start?name=" + encodeURIComponent(name || "") + (gender === 0 || gender === 1 ? "&gender=" + gender : "") + (opts.race === 0 || opts.race === 1 ? "&race=" + opts.race : ""), { method: "POST", headers: { "Content-Type": mime }, body: blob, signal: ctrl.signal });
+        return fetch(b + "/voice/start?name=" + encodeURIComponent(name || "") + (gender === 0 || gender === 1 ? "&gender=" + gender : "") + (opts.race === 0 || opts.race === 1 ? "&race=" + opts.race : ""), { method: "POST", headers: RoEntryUI().devHeaders({ "Content-Type": mime }), body: blob, signal: ctrl.signal });
       }).then(function (r) {
         clearTimeout(upTimer);
         if (run !== st.run) return null;
@@ -2625,7 +2668,7 @@ mergeInto(LibraryManager.library, {
       // 응답이 끝내 안 오면(터널 지연) 생성 화면에 갇히지 않게 60초에 끊는다(2026-11-06 감사 A16)
       var post = function () {
         var upTimer = setTimeout(function () { controller.abort(); }, 60000);
-        return fetch(startUrl, { method: "POST", headers: { "Content-Type": sent.type || "image/jpeg" }, body: sent, signal: controller.signal })
+        return fetch(startUrl, { method: "POST", headers: RoEntryUI().devHeaders({ "Content-Type": sent.type || "image/jpeg" }), body: sent, signal: controller.signal })
           .then(function (r) { clearTimeout(upTimer); return r; }, function (e) { clearTimeout(upTimer); throw e; });
       };
       var take = function (r) {
@@ -3575,7 +3618,7 @@ mergeInto(LibraryManager.library, {
       (st.newStart || Promise.resolve()).then(function () {
         SendMessage("NetSession", "OnHtmlFacePending", "1");
         SendMessage("NetSession", "OnHtmlVoice", "");   // 목소리는 끝나면 따로 보낸다(그전까진 기본)
-        SendMessage("NetSession", "OnHtmlHeadScale", "100");
+        SendMessage("NetSession", "OnHtmlHeadScale", "110");   // 나만의 캐릭터 기본 머리 크기 110%(2026-11-23 사용자) — 얼굴이 나온 뒤 묻는 창에서 작게 100 / 크게 120
         releaseOnboarding();   // 접속(월드 열기) 직전 — 흐름이 쥔 그림·소리·카메라를 놓는다(얼굴 진행 묻기도 멈추므로 아래에서 새로)
         entry.cleanup = null;   // 월드가 열리면 entry.ready → cancel → cleanup 이 얼굴·목소리 작업을 버린다 — 이제 접속 뒤에 끝내야 하므로 떼어 둔다
         window.__roLateOk = 1;   // 로그인 카드가 다시 열리면(나감·접속 실패) 0 — 늦게 온 얼굴·목소리를 다른 계정에 보내지 않게
