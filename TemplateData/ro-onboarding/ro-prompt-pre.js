@@ -1773,12 +1773,27 @@ mergeInto(LibraryManager.library, {
     var pinNoteText = pinReset ? (pinUpgrade ? "예전 4자리 비밀번호가 확인됐어요" : "임시 비밀번호가 확인됐어요") + " — 새 비밀번호 숫자 8자리를 두 번 넣어 주세요"
       : message === "비밀번호를 숫자 8자리로 바꿔 주세요. 새 비밀번호를 입력해 주세요" ? "비밀번호를 숫자 8자리로 바꿀 차례예요 — 먼저 예전 4자리 비밀번호로 로그인해 주세요"
       : message === "비밀번호가 초기화되었습니다. 운영자에게 받은 임시 비밀번호를 입력해 주세요" ? message : "";
+    // ③ 여러 번 틀려 잠김(AccountStore.ReasonLocked, QA v0.1.183 '잠겨도 맞지 않습니다만 보임') — 서버가 '|남은초' 를 붙이면 1초씩 줄여 보인다(서버 세션과 맞추는 형식), 없으면 '잠시 뒤'
+    var lockLeft = -1;
+    if (!pinNoteText && message && message.indexOf("비밀번호를 여러 번 틀렸습니다") === 0) {
+      var lm = /\|(\d+)\s*$/.exec(message); lockLeft = lm ? parseInt(lm[1], 10) : 0;
+      pinNoteText = "비밀번호를 여러 번 틀려 잠깐 잠겼어요 — " + (lockLeft > 0 ? lockLeft + "초 뒤 다시 해 주세요" : "잠시 뒤 다시 해 주세요");
+    }
     if (pinNoteText) {
       var pinNote = document.createElement("div");
       pinNote.setAttribute("role", "status");
       pinNote.style.cssText = "margin:2px 0 10px;padding:10px 12px;border:2px solid #C9963F;border-radius:14px;background:linear-gradient(#3a2a12,#241a0c);box-shadow:inset 0 0 0 1px #ffd96633,0 3px 10px #0007;color:#FFD966;font-size:15px;font-weight:800;line-height:1.45;text-align:center;word-break:keep-all;overflow-wrap:anywhere";
       pinNote.textContent = pinNoteText;
       header.after(pinNote);
+      if (lockLeft > 0) {
+        var lockEnd = Date.now() + lockLeft * 1000;
+        var lockTick = setInterval(function () {
+          if (!pinNote.isConnected) { clearInterval(lockTick); return; }
+          var s = Math.ceil((lockEnd - Date.now()) / 1000);
+          pinNote.textContent = s > 0 ? "비밀번호를 여러 번 틀려 잠깐 잠겼어요 — " + s + "초 뒤 다시 해 주세요" : "이제 다시 해 볼 수 있어요";
+          if (s <= 0) clearInterval(lockTick);
+        }, 1000);
+      }
     }
     // 지우기 ✕ — 지난 이름이 미리 채워지니 한 번에 비울 수 있게(QA 2026-11-07 개선 3). 글자가 있을 때만 보인다(라벨 꾸민 뒤에 감싼다)
     var nameBox = document.createElement("div"); nameBox.style.cssText = "position:relative";
@@ -3172,22 +3187,23 @@ mergeInto(LibraryManager.library, {
         checking = true; next.disabled = true; err.textContent = "이름을 확인하고 있습니다…";
         var controller = new AbortController();
         var timeout = setTimeout(function () { controller.abort(); }, 10000);
+        // 이름을 쓸 수 있는지 얼굴 서버에 먼저 묻는다(2026-11-23 메인·서버 세션 — 얼굴·목소리까지 고른 뒤 접속 때 거절돼 처음부터 다시 했다).
+        //   답 {available|ok: false, reason} = 그 글을 그대로(없으면 '이미 사용 중'), 400 {error} = 그 글, 429 = 잠시 후 다시.
+        //   얼굴 서버가 꺼졌거나·늦거나·모르는 답이면 막지 않고 넘어간다 — 최종 판정은 접속 때 게임 서버가 다시 한다
+        var pass = function () { if (!c.wrap.isConnected || !inp.isConnected || inp.value.trim() !== v) return; st.name = v; inp.blur(); showPin(); };
+        var stop = function (t) { if (!c.wrap.isConnected || !inp.isConnected || inp.value.trim() !== v) return; err.textContent = t; c.shake(); inp.focus(); };
         getBase().then(function (base) {
-          return fetch(base + "/account/name?name=" + encodeURIComponent(v), { cache: "no-store", signal: controller.signal });
+          return fetch(base + "/account/name?name=" + encodeURIComponent(v), { cache: "no-store", signal: controller.signal, headers: RoEntryUI().devHeaders({}) });
         }).then(function (r) {
-          if (!r.ok) throw new Error("name check " + r.status);
-          return r.json();
-        }).then(function (result) {
-          if (!c.wrap.isConnected || !inp.isConnected || inp.value.trim() !== v) return;
-          if (result.available === false) {
-            err.textContent = "이미 사용 중인 이름입니다. 다른 이름을 입력해 주세요";
-            c.shake(); inp.focus(); return;
-          }
-          if (result.available !== true) throw new Error("invalid name response");
-          st.name = v; inp.blur(); showPin();
-        }).catch(function () {
-          if (inp.isConnected) err.textContent = "이름을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요";
-        }).then(function () { clearTimeout(timeout); checking = false; next.disabled = false; });
+          if (r.status === 429) return r.json().catch(function () { return {}; }).then(function (j) { stop((j && (j.reason || j.error)) || "잠시 후 다시 시도해 주세요"); });
+          if (r.status === 400) return r.json().catch(function () { return {}; }).then(function (j) { if (j && (j.reason || j.error)) stop(j.reason || j.error); else pass(); });
+          if (!r.ok) { pass(); return; }
+          return r.json().then(function (result) {
+            if (result && (result.available === false || result.ok === false)) stop(result.reason || "이미 사용 중인 이름이에요. 다른 이름을 입력해 주세요");
+            else pass();
+          });
+        }).catch(function () { pass(); })
+          .then(function () { clearTimeout(timeout); checking = false; next.disabled = false; });
       };
       inp = c.input("모험가 이름", go);
       if (inp.previousElementSibling) inp.previousElementSibling.remove();   // 입력칸 위 라벨 없음(2026-11-16 사용자)
@@ -4093,7 +4109,8 @@ mergeInto(LibraryManager.library, {
       return;
     }
     var p = Math.round((window.__roLoadPct || 0) * 100);
-    bar.textContent = p >= 100 ? "세계의 문을 여는 중…" : "세계를 불러오는 중 " + p + "%";   // 세계관 말투(2026-11-23 사용자 — '게임 받는 중'은 세계관과 안 맞음)
+    // 90% 뒤(엔진을 다 받고 압축 풀기·wasm 준비 — 숫자가 30초 넘게 안 움직여 멈춘 줄 알았다, QA v0.1.183)는 숫자 대신 점이 도는 글
+    bar.textContent = p >= 90 ? "세계의 문을 여는 중" + "...".slice(0, 1 + Math.floor(Date.now() / 400) % 3) : "세계를 불러오는 중 " + p + "%";   // 세계관 말투(2026-11-23 사용자 — '게임 받는 중'은 세계관과 안 맞음)
   }, 250);
   pre.open = function () {
     if (pre.opened || pre.handed || window.__roUnityReady) return;
