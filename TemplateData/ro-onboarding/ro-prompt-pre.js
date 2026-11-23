@@ -410,7 +410,23 @@ mergeInto(LibraryManager.library, {
       input.addEventListener("focus", calm);
     }, 450);
   },
+  // 로딩 글 = 세계관 문구를 돌아가며(2026-11-23 사용자 "맵 받는 중처럼 세계관과 안 맞게 하지 말고 세계관 스토리와 어울리게" — 보기 창 '여러 문구 돌아가며'·'위 띠·Loading 도 같이').
+  //   포링 로딩 화면·검은 덮개·진행률 막대가 같은 시계(2.8초)로 같은 문구를 보여 준다. 가장 긴 문구 13자 — 좁은 폰(320폭)에서도 20px 한 줄
+  $RoLore: function () {
+    if (window.__roLore) return window.__roLore;
+    var L = ["소환진에 마력을 모으는 중", "대륙의 지도를 펼치는 중", "차원문을 여는 중", "전장의 바람을 부르는 중", "포링들이 길을 닦는 중", "모닥불을 지피는 중"];
+    var lore = window.__roLore = {
+      line: function () { return L[Math.floor(Date.now() / 2800) % L.length]; },
+      bind: function (node) {   // 붙인 글 노드를 화면에 있는 동안 계속 바꾼다(떼어지면 멈춤) — 노드를 붙인 뒤에 부른다
+        node.nodeValue = lore.line();
+        var t = setInterval(function () { if (!node.isConnected) { clearInterval(t); return; } node.nodeValue = lore.line(); }, 400);
+        return node;
+      }
+    };
+    return lore;
+  },
   // 팝업과 수명을 분리한 입장 배경막. 실제 플레이어/맵 준비 완료 시 RoEntryReady로만 해제한다.
+  $RoEntryUI__deps: ["$RoLore"],
   $RoEntryUI: function () {
     if (window.__roEntryUI) return window.__roEntryUI;
     var ui = { cleanup: null, racePreviewSelected: false };
@@ -514,7 +530,7 @@ mergeInto(LibraryManager.library, {
       var small = !!ui.root.querySelector("#ro-name-card");   // 카드가 있으면 카드 아래에 작게
       var pw = small ? 32 : 60;   // 2026-11-11 사용자 "로딩 포링 반으로, 너무 크다"(64·120 → 32·60) — 그림자·튀는 높이는 pw 비율이라 같이 줄어든다
       var panel = ui.busyPanel = document.createElement("div"); panel.id = "ro-entry-busy";
-      panel.setAttribute("role", "status"); panel.setAttribute("aria-live", "polite"); panel.setAttribute("aria-label", title || "Loading");
+      panel.setAttribute("role", "status"); panel.setAttribute("aria-live", "polite"); panel.setAttribute("aria-label", title || "불러오는 중");
       panel.style.cssText = small ? "margin:14px auto 28px;display:flex;flex-direction:column;align-items:center;gap:3px;color:#EBDDBC;pointer-events:none"
         : "position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#EBDDBC;pointer-events:none;padding-bottom:6vh;box-sizing:border-box";
       var stage = document.createElement("div"); stage.setAttribute("aria-hidden", "true");
@@ -526,10 +542,11 @@ mergeInto(LibraryManager.library, {
       hop.style.cssText = "position:absolute;left:0;bottom:" + Math.round(pw * 0.05) + "px;width:100%;height:auto;display:block";
       stage.appendChild(shd); stage.appendChild(hop);
       var label = document.createElement("div"); label.setAttribute("aria-hidden", "true");
-      label.style.cssText = "font-size:" + (small ? 16 : 20) + "px;font-weight:800;letter-spacing:1px;text-shadow:0 2px 0 #0008";
-      label.appendChild(document.createTextNode("Loading"));
+      label.style.cssText = "font-size:" + (small ? 16 : 20) + "px;font-weight:800;letter-spacing:1px;text-shadow:0 2px 0 #0008;max-width:92vw;text-align:center";
+      var loreT = document.createTextNode(""); label.appendChild(loreT);   // 'Loading' → 세계관 문구(돌아감)
       for (var i = 0; i < 3; i++) { var d = document.createElement("span"); d.className = "dot"; d.textContent = "."; label.appendChild(d); }
       panel.appendChild(stage); panel.appendChild(label); ui.root.appendChild(panel);
+      RoLore().bind(loreT);
       if (ui.prog) ui.progress(ui.prog.p, ui.prog.label);   // 받는 중에 로딩 화면이 새로 뜨면 막대를 이 화면으로 옮긴다
       // 너무 오래 걸리면 빠져나갈 길(2026-11-11 사용자 아이폰 v.0.079 "'접속 중입니다'만 뜨고 안 들어감, 새 버전 받으란 화면도 없음") —
       //   월드 열기·접속이 멈춰도 이 화면엔 끝이 없었다. 45초가 지나도 같은 판이면 '다시 시도' 버튼: 주소에 새 값을 붙여(?r=) index.html·옛 캐시까지 새로 받는다
@@ -568,9 +585,25 @@ mergeInto(LibraryManager.library, {
           "<div style='height:100%;width:0;border-radius:99px;background:linear-gradient(#ffe38c,#f2b540);transition:width .25s linear'></div></div><div></div>";
         var again = host !== document.body ? host.querySelector("button") : null;   // 포링 화면의 '다시 시도' 버튼보다 위에
         if (again) host.insertBefore(el, again); else host.appendChild(el);
+        // 글 = [문구] + %. 글을 안 주면(빈 값) 화면 아래 막대는 세계관 문구를 돌려 보이고, 포링 화면 안 막대는 포링 아래 같은 문구가 있으니 %만
+        el.loreT = el.lastChild.appendChild(document.createTextNode("")); el.pctT = el.lastChild.appendChild(document.createTextNode(""));
+        if (ui.prog.label) el.loreT.nodeValue = ui.prog.label; else if (host === document.body) RoLore().bind(el.loreT);
       }
       el.firstChild.firstChild.style.width = (p * 100).toFixed(1) + "%";
-      el.lastChild.textContent = (ui.prog.label ? ui.prog.label + " " : "") + Math.round(p * 100) + "%";
+      el.pctT.nodeValue = (el.loreT.nodeValue ? " " : "") + Math.round(p * 100) + "%";
+      ui.progPlace();
+    };
+    // 화면 아래쪽 막대(포링 화면이 없을 때) 자리 = 게임 캔버스 기준(QA v0.1.183 — PC 좁은 창 337폭에서 창 아래 12vh 에 띄워 게임 화면 밖 흰 바탕에 뜨고
+    //   '전체 화면' 버튼과 겹쳤다. PC 는 게임이 9:16 기둥이라 창 아래 ≠ 게임 아래). 캔버스 아래끝에서 높이 12% 위, 폭은 캔버스의 64%(최대 260). 창 크기가 바뀌면 다시
+    ui.progPlace = function () {
+      var el = ui.progEl; if (!el || el.parentNode !== document.body) return;
+      if (!ui.progResize) { ui.progResize = true; window.addEventListener("resize", function () { ui.progPlace(); }); }
+      var cv = document.getElementById("unity-canvas"), r = cv ? cv.getBoundingClientRect() : null;
+      if (!r || r.width < 10 || r.height < 10) { el.style.left = "50%"; el.style.bottom = "max(12vh,env(safe-area-inset-bottom))"; el.firstChild.style.width = "min(64vw,260px)"; return; }
+      var vh = document.documentElement.clientHeight || window.innerHeight;
+      el.style.left = Math.round(r.left + r.width / 2) + "px";
+      el.style.bottom = "max(" + Math.max(0, Math.round(vh - r.bottom + r.height * 0.12)) + "px,env(safe-area-inset-bottom))";
+      el.firstChild.style.width = Math.round(Math.min(r.width * 0.64, 260)) + "px";
     };
     ui.ready = function () { ui.progress(-1); window.__roInWorld = 1; if (window.RoOnboardingFx) window.RoOnboardingFx.stop(); ui.cancel(); if (ui.root) ui.root.remove(); ui.root = ui.top = null; var dock = document.getElementById("ro-install-dock"); if (dock) dock.remove(); };
     window.__roEntryUI = ui;
@@ -581,6 +614,7 @@ mergeInto(LibraryManager.library, {
   // 첫 입장 검은 덮개(2026-11-21 기획 세션 — 사용자 "연출이 나오기 전엔 검은 화면에서 포링 로딩 중 화면이 나와야 되고, 시작하면 검은 화면에서 불타고 있는 성이") —
   //   새 캐릭터(·?introraid=1) 접속이 끝나 접속 덮개가 걷히는 순간(RoEntryReady 바로 앞)부터 전투 연출이 시작될 때까지 검은 바탕 + 가운데 포링 로딩.
   //   그 사이 로그인 배경·맵 받기가 비치지 않게. 켜고 끄기는 C# IntroCover(Assets/_RO/Net/IntroCover.cs). 얼굴 실패 고르기 창(#ro-late-face)은 이보다 위
+  RoIntroCover__deps: ["$RoLore"],
   RoIntroCover: function (on) {
     var old = document.getElementById("ro-intro-cover");
     if (!on) { if (old) old.remove(); return; }
@@ -597,7 +631,7 @@ mergeInto(LibraryManager.library, {
     }
     var pw = 60;   // 접속 로딩 화면(ui.busy)과 같은 크기·움직임
     var c = document.createElement("div"); c.id = "ro-intro-cover";
-    c.setAttribute("role", "status"); c.setAttribute("aria-label", "Loading");
+    c.setAttribute("role", "status"); c.setAttribute("aria-label", "불러오는 중");
     c.style.cssText = "position:fixed;inset:0;z-index:10001;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#EBDDBC;padding-bottom:6vh;box-sizing:border-box;-webkit-user-select:none;user-select:none";
     var stage = document.createElement("div"); stage.setAttribute("aria-hidden", "true");
     stage.style.cssText = "position:relative;width:" + pw + "px;height:" + Math.round(pw * 1.3) + "px";
@@ -608,10 +642,11 @@ mergeInto(LibraryManager.library, {
     hop.style.cssText = "position:absolute;left:0;bottom:" + Math.round(pw * 0.05) + "px;width:100%;height:auto;display:block";
     stage.appendChild(shd); stage.appendChild(hop);
     var label = document.createElement("div"); label.setAttribute("aria-hidden", "true");
-    label.style.cssText = "font-size:20px;font-weight:800;letter-spacing:1px;text-shadow:0 2px 0 #0008";
-    label.appendChild(document.createTextNode("Loading"));
+    label.style.cssText = "font-size:20px;font-weight:800;letter-spacing:1px;text-shadow:0 2px 0 #0008;max-width:92vw;text-align:center";
+    var loreT = document.createTextNode(""); label.appendChild(loreT);   // 'Loading' → 세계관 문구(돌아감, $RoLore)
     for (var i = 0; i < 3; i++) { var d = document.createElement("span"); d.className = "dot"; d.textContent = "."; label.appendChild(d); }
     c.appendChild(stage); c.appendChild(label); document.body.appendChild(c);
+    RoLore().bind(loreT);
   },
   // 월드·존 묶음 받는 진행률(게임 → 로딩 화면) — p 0~1, 음수면 숨김. 글 = "맵 받는 중" 같은 짧은 말(빈 값이면 %만)
   // 게임 기기 번호(NetSession.DeviceId)를 카드 쪽에 알림 — 얼굴·목소리 생성 요청 머리글 X-RO-Device 에 쓴다. 다음 방문 때 엔진보다 먼저 뜨는 카드도 쓰게 남겨 둔다
@@ -1699,11 +1734,13 @@ mergeInto(LibraryManager.library, {
     var saveName = function () { try { localStorage.setItem("ro_login_name", f.name.value.trim()); } catch (_) {} };
     var go = function () {
       if (submitting) return;
+      // 예전 4자리를 다시 넣은 경우(2026-11-23 메인 — v0.1.182 부터 옛 4자리 계정이 '8자리예요'에 막혀 못 들어옴) — 이미 확인됐다고 알리고 새 8자리를 받는다
+      if (pinUpgrade && /^[0-9]{4}$/.test(f.pin.value)) { f.pin.value = ""; f.pinPaint.hide(); setErr("예전 4자리는 이미 확인됐어요 — 새 8자리를 넣어 주세요"); f.pin.focus(); return; }
       var bad = f.check(); if (bad) { setErr(bad); return; }
       if (pinReset) {   // 한 번 넣으면 같은 칸에 한 번 더(2026-11-19 사용자 "비번 정할 때 두 번 묻자", "한 번 묻고 한 번 더 묻자, 맞는지") — 다르면 처음부터
         var pinLabel = f.pin.parentNode.previousSibling;
         if (pinFirst === null) { pinFirst = f.pin.value; f.pin.value = ""; f.pinPaint.hide(); pinLabel.textContent = "확인을 위해 한 번 더 입력해 주세요"; pinLabel.style.color = "#ffdb75"; err.textContent = ""; f.pin.focus(); return; }
-        if (f.pin.value !== pinFirst) { pinFirst = null; f.pin.value = ""; f.pinPaint.hide(); pinLabel.textContent = "새 비밀번호 (숫자 8자리)"; pinLabel.style.color = "#fff0c7"; setErr("비밀번호가 서로 달라요 — 처음부터 다시 입력해 주세요"); f.pin.focus(); return; }
+        if (f.pin.value !== pinFirst) { pinFirst = null; f.pin.value = ""; f.pinPaint.hide(); pinLabel.textContent = "새 비밀번호 (숫자 8자리)"; pinLabel.style.color = "#ffdb75"; setErr("비밀번호가 서로 달라요 — 처음부터 다시 입력해 주세요"); f.pin.focus(); return; }
       }
       submitting = true; saveName();
       f.name.blur(); f.pin.blur(); c.wrap.remove();
@@ -1726,8 +1763,22 @@ mergeInto(LibraryManager.library, {
       label.style.cssText = "color:#fff0c7;font-size:16px;font-weight:800;margin:12px 0 7px;text-shadow:0 2px #301707";
     });
     if (pinReset) {   // 비번 초기화 뒤 새 비밀번호(2026-11-19) — 같은 4칸에 한 번 넣고 한 번 더(go 안에서)
-      f.pin.parentNode.previousSibling.textContent = "새 비밀번호 (숫자 8자리)"; f.pinNew = true;
+      var newLabel = f.pin.parentNode.previousSibling;
+      newLabel.textContent = "새 비밀번호 (숫자 8자리)"; f.pinNew = true;
+      newLabel.style.color = "#ffdb75"; newLabel.style.fontSize = "18px";   // 보통 로그인 카드와 달라 보이게(2026-11-23 — 생김새가 같아 예전 4자리를 다시 넣었다)
       f.pin.autocomplete = "one-time-code";   // 아이폰 '강력한 암호' 노란 칸 막기(새 계정 비번 단계와 같음)
+    }
+    // 서버 안내는 빨간 오류 줄(입력하면 지워짐)이 아니라 금색 고정 안내로 — 비번 칸에 한 글자만 쳐도 사라져 무엇을 넣을지 몰랐다(2026-11-23)
+    //   ① 비번 바꾸기(업그레이드·임시 비번 확인됨) ② 저장 로그인 자동 접속이 '8자리로 바꿔'·'임시 비번 필요'로 거절됨 — 방금 넣은 비번이 없어 바꾸기 카드를 못 여니 보통 카드로 먼저 지금 비번부터
+    var pinNoteText = pinReset ? (pinUpgrade ? "예전 4자리 비밀번호가 확인됐어요" : "임시 비밀번호가 확인됐어요") + " — 새 비밀번호 숫자 8자리를 두 번 넣어 주세요"
+      : message === "비밀번호를 숫자 8자리로 바꿔 주세요. 새 비밀번호를 입력해 주세요" ? "비밀번호를 숫자 8자리로 바꿀 차례예요 — 먼저 예전 4자리 비밀번호로 로그인해 주세요"
+      : message === "비밀번호가 초기화되었습니다. 운영자에게 받은 임시 비밀번호를 입력해 주세요" ? message : "";
+    if (pinNoteText) {
+      var pinNote = document.createElement("div");
+      pinNote.setAttribute("role", "status");
+      pinNote.style.cssText = "margin:2px 0 10px;padding:10px 12px;border:2px solid #C9963F;border-radius:14px;background:linear-gradient(#3a2a12,#241a0c);box-shadow:inset 0 0 0 1px #ffd96633,0 3px 10px #0007;color:#FFD966;font-size:15px;font-weight:800;line-height:1.45;text-align:center;word-break:keep-all;overflow-wrap:anywhere";
+      pinNote.textContent = pinNoteText;
+      header.after(pinNote);
     }
     // 지우기 ✕ — 지난 이름이 미리 채워지니 한 번에 비울 수 있게(QA 2026-11-07 개선 3). 글자가 있을 때만 보인다(라벨 꾸민 뒤에 감싼다)
     var nameBox = document.createElement("div"); nameBox.style.cssText = "position:relative";
@@ -1761,7 +1812,7 @@ mergeInto(LibraryManager.library, {
     var keepText = document.createElement("span"); keepText.textContent = "로그인 유지";
     keepRow.appendChild(keepBox); keepRow.appendChild(keepMark); keepRow.appendChild(keepText);
     c.card.appendChild(keepRow);
-    var btn = c.mainBtn("로그인하고 입장");
+    var btn = c.mainBtn(pinReset ? "새 비밀번호 정하기" : "로그인하고 입장");
     btn.style.cssText = "width:100%;padding:15px 6px;border:3px solid #d7891b;border-top-color:#fff1a9;border-radius:18px;background:linear-gradient(#ffe78a,#ffc336 48%,#efa214);color:#452108;box-shadow:inset 0 2px #fff8,0 5px 0 #793b0d,0 7px 10px #0004;cursor:pointer;font-family:inherit;font-weight:900;font-size:23px";
     btn.onclick = go; c.card.appendChild(btn);
     var create = c.mainBtn("신규 유저 만들기");
@@ -1794,7 +1845,7 @@ mergeInto(LibraryManager.library, {
       header.after(kick);
     } else if (message && message.indexOf("서버 점검") >= 0) {   // 서버 교체·안전 종료(AccountStore.ReasonMaintenance, 2026-11-10 v.0.072) — 오류가 아니라 안내라 흔들지 않고 금색
       err.textContent = message; err.style.color = "#FFD966";
-    } else if (message) setErr(message);
+    } else if (message && !pinNoteText) setErr(message);   // 비번 바꾸기·비번 안내 거절은 위 금색 고정 안내가 대신한다
     // 처음 온 기기(2026-11-14 사용자 "로그인 화면을 둘로 — 신규는 이름·비번 빼고 신규 생성 버튼만 큼직하게", 시안 A Concept/ui/login_split) —
     //   C# 이 tone 4 로 부르면(저장된 이름·쓰던 계정·로그인 유지 열쇠가 모두 없을 때, 한 실행에 한 번) 머리(로고)와 시작 버튼만 남기고
     //   큰 '모험 시작하기' + 안내 + 작은 '이미 계정이 있어요 로그인 ›'. 그걸 누르면 숨긴 칸을 되살려 지금 로그인 카드 그대로.
@@ -4042,7 +4093,7 @@ mergeInto(LibraryManager.library, {
       return;
     }
     var p = Math.round((window.__roLoadPct || 0) * 100);
-    bar.textContent = p >= 100 ? "게임 준비 마무리 중…" : "게임 받는 중 " + p + "%";
+    bar.textContent = p >= 100 ? "세계의 문을 여는 중…" : "세계를 불러오는 중 " + p + "%";   // 세계관 말투(2026-11-23 사용자 — '게임 받는 중'은 세계관과 안 맞음)
   }, 250);
   pre.open = function () {
     if (pre.opened || pre.handed || window.__roUnityReady) return;
