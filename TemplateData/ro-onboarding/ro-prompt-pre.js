@@ -2771,13 +2771,14 @@ mergeInto(LibraryManager.library, {
       st.up = getBase().then(function (b) {
         base = b;
         // 나만의 캐릭터 의상(2026-11-21) — 의상 사진이 있으면 얼굴 사진 뒤에 이어 붙이고 olen(끝 바이트 수)·memo 로 알린다. 서버가 얼굴·의상을 한 장으로 만든다
-        var outfit = st.outfit && st.outfit.file ? st.outfit : null;
-        return Promise.all([shrink(file), outfit ? shrink(outfit.file) : null]).then(function (blobs) {
+        var outfit = st.outfit && (st.outfit.file || st.outfit.text) ? st.outfit : null;
+        return Promise.all([shrink(file), outfit && outfit.file ? shrink(outfit.file) : null]).then(function (blobs) {
           if (stale()) return null;
           var blob = blobs[0], ob = blobs[1];
           sent = ob ? new Blob([blob, ob], { type: blob.type || "image/jpeg" }) : blob;
           startUrl = b + "/face/start?race=" + race + "&gender=" + gender + "&detail=" + detail + (acc ? "&acc=" + acc : "") +
-            (ob ? "&olen=" + ob.size + (outfit.memo ? "&memo=" + encodeURIComponent(outfit.memo.slice(0, 60)) : "") : "");
+            (ob ? "&olen=" + ob.size + (outfit.memo ? "&memo=" + encodeURIComponent(outfit.memo.slice(0, 60)) : "")
+              : outfit && outfit.memo ? "&otext=1&memo=" + encodeURIComponent(outfit.memo.slice(0, 60)) : "");   // 말로 설명 — 사진 없이 글만
           return post();
         });
       }).then(take).then(function (job) {
@@ -3124,7 +3125,7 @@ mergeInto(LibraryManager.library, {
     var showOutfit = function () {
       stopCam();
       c = RoCard(0);
-      c.card.innerHTML = c.raceShell(5, "의상 사진", "입고 싶은 옷 사진을 넣어 주세요", 7);
+      c.card.innerHTML = c.raceShell(5, "의상", "입고 싶은 옷 사진을 넣거나 말로 설명해 주세요", 7);
       c.anim();
       var o = st.outfit || { file: null, memo: "" };
       var box = document.createElement("div");
@@ -3145,16 +3146,24 @@ mergeInto(LibraryManager.library, {
         c.card.appendChild(i); return i;
       };
       var fileIn = mk(false), camIn = mk(true);
-      var row = document.createElement("div"); row.style.cssText = "display:flex;gap:10px;margin-top:4px";
-      [["사진 찍기", function () { saveResume(); (touch ? camIn : fileIn).click(); }], ["이미지 넣기", function () { saveResume(); fileIn.click(); }]].forEach(function (d) {
-        var b = c.mainBtn(d[0]); b.classList.add("ro-race-next"); b.style.flex = "1"; b.style.marginTop = "8px"; b.style.fontSize = "18px"; b.onclick = d[1]; row.appendChild(b);
+      var row = document.createElement("div"); row.style.cssText = "display:flex;gap:8px;margin-top:4px";
+      // 말로 설명(2026-11-23 사용자 "이미지 넣기 옆에 '말로 설명' 하나 추가") — 사진 없이 위 글만으로 옷을 만든다(/face/start 에 otext=1·memo, 서버 세션 짝).
+      //   글이 비었으면 글칸을 밝히고 적게 한 뒤 다시 누르게 한다. 서버가 아직 otext 를 모르면 얼굴만 만들어지고 기본 의상(예전과 같음)
+      var talk = function () {
+        var t = (memo.value || "").trim();
+        if (!t) { memo.placeholder = "입고 싶은 옷을 적고 다시 눌러 주세요"; memo.style.borderColor = "#ffdb75"; memo.focus(); return; }
+        o.file = null; o.memo = t; o.text = true; st.outfit = o; go(true);
+      };
+      [["사진 찍기", function () { saveResume(); (touch ? camIn : fileIn).click(); }], ["이미지 넣기", function () { saveResume(); fileIn.click(); }], ["말로 설명", talk]].forEach(function (d) {
+        var b = c.mainBtn(d[0]); b.classList.add("ro-race-next"); b.style.flex = "1"; b.style.minWidth = "0"; b.style.marginTop = "8px"; b.style.fontSize = "clamp(13px,4.2vw,16px)"; b.style.whiteSpace = "nowrap";   // 세 개라 좁은 폰(340)에서 '이미지 넣기'가 넘치지 않게 b.onclick = d[1]; row.appendChild(b);
       });
       var memo = document.createElement("input"); memo.type = "text"; memo.maxLength = 60; memo.value = o.memo || "";
-      memo.placeholder = "원하는 느낌을 적어도 돼요 (선택)";
+      memo.placeholder = "원하는 옷·느낌 (예: 주황 도복에 파란 띠)";
       memo.style.cssText = "box-sizing:border-box;width:100%;margin-top:10px;padding:10px 12px;font:inherit;font-size:16px;color:#fff1cd;background:#2a1a11;border:2px solid #a76c3b;border-radius:12px;outline:none";
       memo.oninput = function () { o.memo = memo.value; st.outfit = o; };
       var go = function (useOutfit) {   // 얼굴 사진 + (의상) → 한 번에 생성 요청 → 녹음
-        st.outfit = useOutfit && o.file ? { file: o.file, memo: (o.memo || "").trim() } : null;
+        st.outfit = useOutfit && o.file ? { file: o.file, memo: (o.memo || "").trim() }
+          : useOutfit && o.text && (o.memo || "").trim() ? { file: null, memo: o.memo.trim(), text: true } : null;
         if (!st.faceFile) { afterPhoto(); return; }
         upload(st.faceFile);
         startFaceProgress();
