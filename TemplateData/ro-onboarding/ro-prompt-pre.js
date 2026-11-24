@@ -975,6 +975,7 @@ mergeInto(LibraryManager.library, {
       var wrap = document.createElement("div");
       var row = document.createElement("div"), tiles = [];
       row.style.cssText = "display:flex;gap:12px;margin:14px 0 10px";
+      var longQ = info.reduce(function (a, d) { return d.quote.length > a.length ? d.quote : a; }, ""), longS = info.reduce(function (a, d) { return (d.story || "").length > a.length ? d.story : a; }, "");
       var oath = document.createElement("div");   // 고른 종족의 맹세 판
       oath.style.cssText = "box-sizing:border-box;min-height:66px;margin:0 0 4px;padding:10px 12px;border:2px solid #6E5A42;border-radius:14px;background:#1A100A;text-align:center;display:flex;flex-direction:column;justify-content:center;gap:4px;transition:border-color .15s,opacity .2s";
       var oathQ = document.createElement("div"), oathS = document.createElement("div");
@@ -997,8 +998,8 @@ mergeInto(LibraryManager.library, {
         var sel = any ? info[get()] : null;
         oath.style.opacity = sel ? "1" : ".0";
         oath.style.borderColor = sel ? sel.edge : "#6E5A42";
-        oathQ.textContent = sel ? sel.quote : ""; oathQ.style.color = sel ? sel.edge : "#E1D2B8";
-        oathS.textContent = sel ? sel.story : "";
+        oathQ.textContent = sel ? sel.quote : longQ; oathQ.style.color = sel ? sel.edge : "#E1D2B8";
+        oathS.textContent = sel ? sel.story : longS;   // 고르기 전에도 가장 긴 글을 보이지 않게(투명) 넣어 판 높이를 미리 잡는다 — 고르는 순간 판이 커져 카드 맞춤 배율이 1 로 떨어져 카드가 팍 작아졌다(2026-11-25 사용자 "종족 고르면 팝업 사이즈가 왜 달라지지")
       };
       // 테두리 그림(428×600)의 투명 여백(인간 왼14·위5·오른2·아래8px, 오크 왼5·위9·오른4·아래5px)만큼 키워 불투명 테두리를 칸(뒷판) 가장자리에 맞춘다
       var FRAME_FIT = { human: "left:-3.4%;top:-.85%;width:103.88%;height:102.21%", orc: "left:-1.19%;top:-1.54%;width:102.15%;height:102.39%" };
@@ -2770,18 +2771,14 @@ mergeInto(LibraryManager.library, {
     };
     // 고른·찍은 사진 하나로 — 미리보기 그림을 잡아 두고 올리기를 시작한 뒤 다음 단계(다시 올리기면 바로 기다림)
     // 사진을 넣으면 카드 위에 초록 판(큰 체크 원 + 글)을 잠깐 띄우고 다음으로(2026-11-24 사용자 "넣으면 확실하게 들어갔다고 표시 — 사진 이미지 말고 도형으로, 녹색으로")
-    var showInserted = function (label, then) {
-      var host = c && c.card; if (!host) { then(); return; }
-      if (getComputedStyle(host).position === "static") host.style.position = "relative";
-      var ov = document.createElement("div");
-      ov.style.cssText = "position:absolute;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;border-radius:inherit;" +
-        "background:radial-gradient(ellipse at center,rgba(36,110,52,.96),rgba(14,54,24,.97));border:4px solid #4fe36a;box-shadow:inset 0 0 40px rgba(79,227,106,.45),0 0 24px rgba(79,227,106,.55);opacity:0;transition:opacity .15s";
-      ov.innerHTML = "<div style='width:min(34vw,120px);height:min(34vw,120px);border-radius:50%;background:#3fd65c;box-shadow:0 0 0 6px rgba(255,255,255,.25),0 6px 18px #0008;display:flex;align-items:center;justify-content:center;transform:scale(.4);transition:transform .28s cubic-bezier(.2,1.6,.4,1)'>" +
-        "<svg width='62%' height='62%' viewBox='0 0 64 64' fill='none' stroke='#fff' stroke-width='9' stroke-linecap='round' stroke-linejoin='round'><path d='M14 34 l12 12 l24 -26'/></svg></div>" +
-        "<div style='color:#eaffea;font-weight:800;font-size:clamp(20px,6vw,26px);text-shadow:0 2px 4px #0009;text-align:center;padding:0 12px'>" + label + "</div>";
-      host.appendChild(ov);
-      requestAnimationFrame(function () { ov.style.opacity = "1"; var dot = ov.firstChild; if (dot) dot.style.transform = "scale(1)"; });
-      setTimeout(function () { if (ov.parentNode) ov.parentNode.removeChild(ov); then(); }, 1000);
+    // 사진을 넣으면 사진 칸만 초록 테두리 + 작은 체크 + 글로 0.8초 보이고 다음으로(2026-11-24 사용자 "넣으면 확실하게 들어갔다고 — 도형으로, 녹색으로"
+    //   → 2026-11-25 "너무 크게 나온다, 얌전하게" 시안 A: 카드 전체를 덮던 초록 판 대신 칸 안에서만)
+    var showInserted = function (label, then, box) {
+      if (!box || !box.isConnected) { then(); return; }
+      box.style.borderColor = "#4fe36a"; box.style.boxShadow = "0 0 10px rgba(79,227,106,.45)";
+      box.innerHTML = "<span style='display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;background:#3fd65c;color:#fff;font-size:24px;font-weight:900'>&#10003;</span>" +
+        "<span style='font-size:15px;font-weight:700;color:#bff5c8'>" + label + "</span>";
+      setTimeout(then, 800);
     };
     var usePhoto = function (f) {
       clearResume();
@@ -2789,7 +2786,7 @@ mergeInto(LibraryManager.library, {
       if (st.race !== 0 && st.race !== 1) { showRace(); return; }
       if (st.thumb) URL.revokeObjectURL(st.thumb);
       st.thumb = URL.createObjectURL(f); st.photoNotice = ""; st.noPhoto = false;
-      if (st.mode === "custom" && !st.started) { st.faceFile = f; showInserted("얼굴 사진을 넣었어요!", showOutfit); return; }   // 나만의 캐릭터 = 얼굴과 의상을 한 번에 만든다 — 의상 단계까지 받은 뒤 올린다
+      if (st.mode === "custom" && !st.started) { st.faceFile = f; showInserted("얼굴 사진을 넣었어요", showOutfit, st.photoBox); return; }   // 나만의 캐릭터 = 얼굴과 의상을 한 번에 만든다 — 의상 단계까지 받은 뒤 올린다
       upload(f);
       startFaceProgress();
       if (st.started) { c.wrap.remove(); wait(); } else afterPhoto();   // 2026-11-10 사진 다음 = 목소리 녹음(이름·비번은 사진 앞으로)
@@ -2942,6 +2939,7 @@ mergeInto(LibraryManager.library, {
         accChips[a[0]] = chip; accGrid.appendChild(chip);
       });
       var box = document.createElement("div");   // 미리보기 자리 — 고른 사진 / 카메라 / 찍은 사진
+      st.photoBox = box;   // 사진 넣음 표시(showInserted)가 이 칸에 그린다
       box.style.cssText = "box-sizing:border-box;width:100%;height:clamp(110px,24vh,210px);border:3px solid #a76c3b;border-radius:18px;background:radial-gradient(ellipse,#4c2c1a,#28170f);box-shadow:inset 0 3px 8px #0006;" +
         "display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#EBDDBC;overflow:hidden;position:relative";
       var err = c.errLine();
@@ -3101,7 +3099,7 @@ mergeInto(LibraryManager.library, {
     var showOutfit = function () {
       stopCam();
       c = RoCard(0);
-      c.card.innerHTML = c.raceShell(5, "의상", "입고 싶은 옷 사진을 넣거나 말로 설명해 주세요", 7);
+      c.card.innerHTML = c.raceShell(5, "의상", "입고 싶은 옷 사진을 넣거나 글로 설명해 주세요", 7);
       c.anim();
       var o = st.outfit || { file: null, memo: "" };
       var box = document.createElement("div");
@@ -3118,7 +3116,7 @@ mergeInto(LibraryManager.library, {
       var mk = function (capture) {
         var i = document.createElement("input"); i.type = "file"; i.accept = "image/*"; i.style.display = "none";
         if (capture) i.setAttribute("capture", "environment");   // 휴대폰 = 뒤 카메라(옷을 찍는다)
-        i.onchange = function () { if (!i.isConnected) return; var f = i.files && i.files[0]; if (f) { o.file = f; o.memo = memo.value; st.outfit = o; paint(); showInserted("의상 사진을 넣었어요!", function () { go(true); }); } };   // 넣자마자 다음(목소리 녹음)
+        i.onchange = function () { if (!i.isConnected) return; var f = i.files && i.files[0]; if (f) { o.file = f; o.memo = memo.value; st.outfit = o; paint(); showInserted("의상 사진을 넣었어요", function () { go(true); }, box); } };   // 넣자마자 다음(목소리 녹음)
         c.card.appendChild(i); return i;
       };
       var fileIn = mk(false), camIn = mk(true);
@@ -3130,7 +3128,7 @@ mergeInto(LibraryManager.library, {
         if (!t) { memo.placeholder = "입고 싶은 옷을 적고 다시 눌러 주세요"; memo.style.borderColor = "#ffdb75"; memo.focus(); return; }
         o.file = null; o.memo = t; o.text = true; st.outfit = o; go(true);
       };
-      [["사진 찍기", function () { saveResume(); (touch ? camIn : fileIn).click(); }], ["이미지 넣기", function () { saveResume(); fileIn.click(); }], ["말로 설명", talk]].forEach(function (d) {
+      [["사진 찍기", function () { saveResume(); (touch ? camIn : fileIn).click(); }], ["이미지 넣기", function () { saveResume(); fileIn.click(); }], ["글로 설명", talk]].forEach(function (d) {
         var b = c.mainBtn(d[0]); b.classList.add("ro-race-next"); b.style.flex = "1"; b.style.minWidth = "0"; b.style.marginTop = "8px"; b.style.fontSize = "clamp(13px,4.2vw,16px)"; b.style.whiteSpace = "nowrap"; b.onclick = d[1]; row.appendChild(b);   // 세 개라 좁은 폰(340)에서 '이미지 넣기'가 넘치지 않게 (2026-11-24: 0be20b571 때 onclick·appendChild 가 이 주석 안으로 들어가 버튼 셋이 안 붙었다)
       });
       var memo = document.createElement("input"); memo.type = "text"; memo.maxLength = 60; memo.value = o.memo || "";
