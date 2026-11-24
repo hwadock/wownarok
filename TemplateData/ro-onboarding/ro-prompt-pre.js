@@ -2769,13 +2769,27 @@ mergeInto(LibraryManager.library, {
       if (st.thumb) URL.revokeObjectURL(st.thumb); st.thumb = null; st.faceFile = null;
     };
     // 고른·찍은 사진 하나로 — 미리보기 그림을 잡아 두고 올리기를 시작한 뒤 다음 단계(다시 올리기면 바로 기다림)
+    // 사진을 넣으면 카드 위에 초록 판(큰 체크 원 + 글)을 잠깐 띄우고 다음으로(2026-11-24 사용자 "넣으면 확실하게 들어갔다고 표시 — 사진 이미지 말고 도형으로, 녹색으로")
+    var showInserted = function (label, then) {
+      var host = c && c.card; if (!host) { then(); return; }
+      if (getComputedStyle(host).position === "static") host.style.position = "relative";
+      var ov = document.createElement("div");
+      ov.style.cssText = "position:absolute;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;border-radius:inherit;" +
+        "background:radial-gradient(ellipse at center,rgba(36,110,52,.96),rgba(14,54,24,.97));border:4px solid #4fe36a;box-shadow:inset 0 0 40px rgba(79,227,106,.45),0 0 24px rgba(79,227,106,.55);opacity:0;transition:opacity .15s";
+      ov.innerHTML = "<div style='width:min(34vw,120px);height:min(34vw,120px);border-radius:50%;background:#3fd65c;box-shadow:0 0 0 6px rgba(255,255,255,.25),0 6px 18px #0008;display:flex;align-items:center;justify-content:center;transform:scale(.4);transition:transform .28s cubic-bezier(.2,1.6,.4,1)'>" +
+        "<svg width='62%' height='62%' viewBox='0 0 64 64' fill='none' stroke='#fff' stroke-width='9' stroke-linecap='round' stroke-linejoin='round'><path d='M14 34 l12 12 l24 -26'/></svg></div>" +
+        "<div style='color:#eaffea;font-weight:800;font-size:clamp(20px,6vw,26px);text-shadow:0 2px 4px #0009;text-align:center;padding:0 12px'>" + label + "</div>";
+      host.appendChild(ov);
+      requestAnimationFrame(function () { ov.style.opacity = "1"; var dot = ov.firstChild; if (dot) dot.style.transform = "scale(1)"; });
+      setTimeout(function () { if (ov.parentNode) ov.parentNode.removeChild(ov); then(); }, 1000);
+    };
     var usePhoto = function (f) {
       clearResume();
       stopCam();
       if (st.race !== 0 && st.race !== 1) { showRace(); return; }
       if (st.thumb) URL.revokeObjectURL(st.thumb);
       st.thumb = URL.createObjectURL(f); st.photoNotice = ""; st.noPhoto = false;
-      if (st.mode === "custom" && !st.started) { st.faceFile = f; showOutfit(); return; }   // 나만의 캐릭터 = 얼굴과 의상을 한 번에 만든다 — 의상 단계까지 받은 뒤 올린다
+      if (st.mode === "custom" && !st.started) { st.faceFile = f; showInserted("얼굴 사진을 넣었어요!", showOutfit); return; }   // 나만의 캐릭터 = 얼굴과 의상을 한 번에 만든다 — 의상 단계까지 받은 뒤 올린다
       upload(f);
       startFaceProgress();
       if (st.started) { c.wrap.remove(); wait(); } else afterPhoto();   // 2026-11-10 사진 다음 = 목소리 녹음(이름·비번은 사진 앞으로)
@@ -3104,7 +3118,7 @@ mergeInto(LibraryManager.library, {
       var mk = function (capture) {
         var i = document.createElement("input"); i.type = "file"; i.accept = "image/*"; i.style.display = "none";
         if (capture) i.setAttribute("capture", "environment");   // 휴대폰 = 뒤 카메라(옷을 찍는다)
-        i.onchange = function () { if (!i.isConnected) return; var f = i.files && i.files[0]; if (f) { o.file = f; o.memo = memo.value; st.outfit = o; paint(); go(true); } };   // 넣자마자 다음(목소리 녹음)
+        i.onchange = function () { if (!i.isConnected) return; var f = i.files && i.files[0]; if (f) { o.file = f; o.memo = memo.value; st.outfit = o; paint(); showInserted("의상 사진을 넣었어요!", function () { go(true); }); } };   // 넣자마자 다음(목소리 녹음)
         c.card.appendChild(i); return i;
       };
       var fileIn = mk(false), camIn = mk(true);
@@ -3117,7 +3131,7 @@ mergeInto(LibraryManager.library, {
         o.file = null; o.memo = t; o.text = true; st.outfit = o; go(true);
       };
       [["사진 찍기", function () { saveResume(); (touch ? camIn : fileIn).click(); }], ["이미지 넣기", function () { saveResume(); fileIn.click(); }], ["말로 설명", talk]].forEach(function (d) {
-        var b = c.mainBtn(d[0]); b.classList.add("ro-race-next"); b.style.flex = "1"; b.style.minWidth = "0"; b.style.marginTop = "8px"; b.style.fontSize = "clamp(13px,4.2vw,16px)"; b.style.whiteSpace = "nowrap";   // 세 개라 좁은 폰(340)에서 '이미지 넣기'가 넘치지 않게 b.onclick = d[1]; row.appendChild(b);
+        var b = c.mainBtn(d[0]); b.classList.add("ro-race-next"); b.style.flex = "1"; b.style.minWidth = "0"; b.style.marginTop = "8px"; b.style.fontSize = "clamp(13px,4.2vw,16px)"; b.style.whiteSpace = "nowrap"; b.onclick = d[1]; row.appendChild(b);   // 세 개라 좁은 폰(340)에서 '이미지 넣기'가 넘치지 않게 (2026-11-24: 0be20b571 때 onclick·appendChild 가 이 주석 안으로 들어가 버튼 셋이 안 붙었다)
       });
       var memo = document.createElement("input"); memo.type = "text"; memo.maxLength = 60; memo.value = o.memo || "";
       memo.placeholder = "원하는 옷·느낌 (예: 주황 도복에 파란 띠)";
