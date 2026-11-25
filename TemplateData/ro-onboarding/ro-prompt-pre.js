@@ -620,6 +620,25 @@ mergeInto(LibraryManager.library, {
   RoLoadProgress__deps: ["$RoEntryUI"],
   RoLoadProgress: function (p, labelPtr) { RoEntryUI().progress(p, labelPtr ? UTF8ToString(labelPtr) : ""); },
   RoEntryReady__deps: ["$RoEntryUI"],
+  // 유령 프롤로그 웹 훅(2026-11-26 사용자 "계정보다 플레이 먼저 해 보게", .claude/plan_ghost_intro.md) — 첫 방문인지는 index(ro-pre-load)가 한 번 정해
+  //   window.__roGhost 에 두고(저장된 이름·로그인 유지 열쇠·ro_ghost_done 이 모두 없음, 주소 ?ghost=1 강제 / ?ghost=0 끔), C# 는 같은 답을 읽기만 한다(두 쪽 판단이 엇갈리지 않게).
+  //   C# 순서: 부트 뒤 RoGhostIntroWanted() == 1 이면 로그인 카드 대신 혼자 장면 → 장면이 그려지면 RoGhostIntroReady() → 천사·화이트아웃 끝에 RoGhostIntroDone() = 생성 흐름(종족 선택부터).
+  RoGhostIntroWanted: function () { return window.__roGhost ? 1 : 0; },
+  RoGhostIntroReady__deps: ["$RoEntryUI"],
+  RoGhostIntroReady: function () {   // 혼자 장면이 그려지기 시작 — 먼저 띄운 로딩 화면·위쪽 띠를 걷는다(유니티 화면을 가리지 않게)
+    var pre = window.__roPre; if (pre) pre.ghostBusy = 0;
+    var bar = document.getElementById("ro-pre-bar"); if (bar) bar.remove();
+    var u = RoEntryUI(); u.hideBusy();
+    if (u.root && !document.getElementById("ro-name-card")) { u.root.remove(); u.root = u.top = null; }
+  },
+  RoGhostIntroDone__deps: ["$RoNewFlow", "$RoEntryUI"],
+  RoGhostIntroDone: function () {   // 화이트아웃 뒤 — 이 기기는 프롤로그를 봤다고 남기고(다음엔 로그인 카드), 하얀 화면에서 어두워지며 종족 선택부터 지금 생성 흐름 그대로
+    try { localStorage.setItem("ro_ghost_done", "1"); } catch (_) {}
+    window.__roGhost = 0;
+    RoNewFlow("");
+    var root = RoEntryUI().root;
+    if (root) { root.style.transition = "none"; root.style.background = "#fff"; void root.offsetWidth; root.style.transition = "background 1.2s ease"; root.style.background = "#100d0a"; setTimeout(function () { root.style.transition = ""; }, 1300); }
+  },
   RoEntryReady: function () {
     // 월드에 들어온 계정 이름을 로그인 카드 이름 칸용(ro_login_name)으로 남긴다(QA 새 유저 v153 "로그아웃 뒤 이름 칸에 예전 이름") —
     //   로그인 카드만 저장해서 새 계정 만들기·로그인 유지 자동 접속으로 들어오면 옛 이름이 남았다. 이름 = 이번에 보낸 이름(__roSttAuth, 로그인 카드·새로 시작) 또는 유지 열쇠의 이름(ro_login_keep "이름\n열쇠")
@@ -4092,7 +4111,9 @@ mergeInto(LibraryManager.library, {
   var bar = document.createElement("div"); bar.id = "ro-pre-bar"; bar.setAttribute("aria-live", "polite");
   bar.style.cssText = "position:fixed;left:50%;top:max(8px,env(safe-area-inset-top));transform:translateX(-50%);z-index:2147482000;padding:4px 12px;border-radius:99px;background:#000a;color:#f3d5a0;font:700 12px/1.4 'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;pointer-events:none;white-space:nowrap";
   var tick = setInterval(function () {
-    if (window.__roUnityReady || pre.handed || window.__roInWorld) {
+    // 유령 프롤로그 길은 엔진이 켜져도 혼자 장면 맵을 받는 동안 그대로 — C# 가 RoGhostIntroReady(장면 그려짐)를 부르거나 로그인 카드로 넘어가면(handed) 걷는다
+    var ghostWait = pre.ghostBusy && !pre.handed && !window.__roInWorld;
+    if (!ghostWait && (window.__roUnityReady || pre.handed || window.__roInWorld)) {
       clearInterval(tick); bar.remove();
       if (pre.keepBusy) {   // 저장 로그인 길 — 엔진이 켜지면 우리 로딩 화면을 걷어 유니티 쪽(소환진·입장)을 가리지 않게. 그새 C# 가 카드를 띄웠으면 그대로
         pre.keepBusy = 0;
@@ -4117,5 +4138,12 @@ mergeInto(LibraryManager.library, {
     if (pre.opened || pre.handed || window.__roUnityReady) return;
     pre.opened = 1; pre.keepBusy = 1; document.body.appendChild(bar);
     RoEntryUI().busy("게임을 준비하고 있습니다");
+  };
+  // 유령 프롤로그(2026-11-26 사용자 "계정보다 플레이 먼저", .claude/plan_ghost_intro.md) — 첫 방문은 로그인 카드 대신 로딩 화면 + 띠만.
+  //   걷는 때 = C# 가 혼자 장면을 그리기 시작해 RoGhostIntroReady 를 부를 때(그 전까진 엔진이 켜져도 유지). C# 가 예전처럼 로그인 카드를 부르면 그대로 카드로
+  pre.openGhost = function () {
+    if (pre.opened || pre.handed || window.__roUnityReady) return;
+    pre.opened = 1; pre.ghostBusy = 1; document.body.appendChild(bar);
+    RoEntryUI().busy("세계를 준비하고 있습니다");
   };
 })();
