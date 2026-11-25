@@ -541,7 +541,7 @@ mergeInto(LibraryManager.library, {
       hop.style.cssText = "position:absolute;left:0;bottom:" + Math.round(pw * 0.05) + "px;width:100%;height:auto;display:block";
       stage.appendChild(shd); stage.appendChild(hop);
       var label = document.createElement("div"); label.setAttribute("aria-hidden", "true");
-      label.style.cssText = "font-size:" + (small ? 16 : 20) + "px;font-weight:800;letter-spacing:1px;text-shadow:0 2px 0 #0008;max-width:92vw;text-align:center";
+      label.style.cssText = "font-size:" + (small ? 16 : 20) + "px;font-weight:400;letter-spacing:1px;text-shadow:0 2px 0 #0008;max-width:92vw;text-align:center";
       var loreT = document.createTextNode(""); label.appendChild(loreT);   // 'Loading' → 세계관 문구(돌아감)
       for (var i = 0; i < 3; i++) { var d = document.createElement("span"); d.className = "dot"; d.textContent = "."; label.appendChild(d); }
       panel.appendChild(stage); panel.appendChild(label); ui.root.appendChild(panel);
@@ -578,7 +578,7 @@ mergeInto(LibraryManager.library, {
       if (!el || !el.isConnected || el.parentNode !== host) {
         if (el) el.remove();
         el = ui.progEl = document.createElement("div"); el.id = "ro-load-prog"; el.setAttribute("aria-hidden", "true");
-        el.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;color:#EBDDBC;font:700 13px/1.3 'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;text-shadow:0 2px 0 #0008" +
+        el.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;color:#EBDDBC;font:400 13px/1.3 'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;text-shadow:0 2px 0 #0008" +
           (host === document.body ? ";position:fixed;left:50%;bottom:max(12vh,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:2147481000" : ";margin-top:4px");
         el.innerHTML = "<div style='box-sizing:border-box;width:min(64vw,260px);height:14px;padding:2px;border:2px solid #C9963F;border-radius:99px;background:#291a0f;box-shadow:0 2px 6px #0008'>" +
           "<div style='height:100%;width:0;border-radius:99px;background:linear-gradient(#ffe38c,#f2b540);transition:width .25s linear'></div></div><div></div>";
