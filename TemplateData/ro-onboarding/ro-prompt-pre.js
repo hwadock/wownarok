@@ -3382,6 +3382,7 @@ mergeInto(LibraryManager.library, {
       if (progressAbort) progressAbort.abort(); progressAbort = null;
       loadUi = null;
       var old = document.getElementById("ro-face-progress"); if (old) old.remove();
+      var oldMini = document.getElementById("ro-face-mini"); if (oldMini) oldMini.remove();
     };
     entry.cleanup = function () {
       Object.keys(preCache).forEach(function (k) { preCache[k].then(function (o) { if (o) URL.revokeObjectURL(o); }); }); preCache = {};
@@ -3394,6 +3395,13 @@ mergeInto(LibraryManager.library, {
       panel.style.cssText = "width:100%;box-sizing:border-box;padding:10px 16px 12px;border:1px solid var(--ro-ui-edge,#C9963F);border-radius:12px;background:rgba(35,24,18,.96);color:#EBDDBC;box-shadow:0 4px 24px #0008";
       panel.innerHTML = "<div style='text-align:center;font-size:16px;font-weight:800;margin-bottom:8px'><span id='ro-face-title'>얼굴 생성 중</span> <span id='ro-face-percent' style='color:#F2C77A'>0%</span></div><div role='progressbar' aria-label='얼굴 생성 진행률' aria-valuemin='0' aria-valuemax='100' aria-valuenow='0' style='height:10px;border-radius:6px;background:#59432f;overflow:hidden'><div id='ro-load-fill' style='height:100%;width:0%;background:linear-gradient(90deg,#C9963F,#F2C77A);transition:width .6s ease'></div></div><div id='ro-load-txt' aria-live='polite' hidden style='font-size:13px;margin-top:6px;text-align:center;color:#ffb38a'></div>";
       entry.top.appendChild(panel);
+      // 프롤로그(z 10001)가 진행 판을 덮어도 화면 맨 위 끝에 얇은 막대 + 작은 글로 보인다(2026-11-25 사용자 "프롤로그 나올 때도 상단 끝에 붙어서 미니멀하게")
+      //   프롤로그가 떠 있을 때만 보인다(:has) — 그 밖에는 위 진행 판이 보이므로 숨김
+      if (!document.getElementById("ro-face-mini-css")) { var mcss = document.createElement("style"); mcss.id = "ro-face-mini-css"; mcss.textContent = "#ro-face-mini{display:none}body:has(#ro-prologue) #ro-face-mini{display:block}"; document.head.appendChild(mcss); }
+      var mini = document.createElement("div"); mini.id = "ro-face-mini";
+      mini.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:10002;text-align:center;pointer-events:none";
+      mini.innerHTML = "<div style='height:3px;background:rgba(0,0,0,.35)'><div id='ro-face-mini-fill' style='height:100%;width:0%;background:linear-gradient(90deg,#C9963F,#F2C77A);box-shadow:0 0 6px rgba(242,199,122,.6);transition:width .6s ease'></div></div><div id='ro-face-mini-txt' style='display:inline-block;max-width:80vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px;padding:1px 8px;border-radius:0 0 8px 8px;background:rgba(20,13,9,.55);color:#F2C77A;font-size:11px;font-weight:700'>얼굴 생성 중 0%</div>";
+      document.body.appendChild(mini);
       loadUi = function (pct, txt, working) {
         lastPct = Math.max(lastPct, Math.round(Math.max(0, Math.min(100, pct))));
         panel.querySelector("#ro-load-fill").style.width = lastPct + "%";
@@ -3401,6 +3409,8 @@ mergeInto(LibraryManager.library, {
         panel.querySelector("#ro-face-percent").textContent = lastPct + "%";
         panel.querySelector("#ro-face-title").textContent = lastPct >= 100 ? "얼굴 완성" : "얼굴 생성 중";
         if (txt) { var note = panel.querySelector("#ro-load-txt"), bad = /실패|못했|많아요|다시 확인/.test(txt); note.hidden = !bad; if (bad) note.textContent = txt; }
+        mini.querySelector("#ro-face-mini-fill").style.width = lastPct + "%";
+        mini.querySelector("#ro-face-mini-txt").textContent = txt && /실패|못했|많아요/.test(txt) ? txt : lastPct >= 100 ? "얼굴 완성" : "얼굴 생성 중 " + lastPct + "%";
       };
     };
     var finishGeneration = function () {
