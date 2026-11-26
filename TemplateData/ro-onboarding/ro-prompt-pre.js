@@ -1133,6 +1133,14 @@ mergeInto(LibraryManager.library, {
 
   // 첫 접속 실패는 안내에서 멈춘다. 재접속/새 판 로드는 사용자 버튼으로만 실행한다.
   RoResourceLoadFailed__deps: ["$RoCard", "$RoEntryUI"],
+  // 판 글 고쳐 쓰기(2026-11-26 QA v0.1.205 "왼쪽 아래 판 글이 v0.1.204 로 남음") — 입구 index.html 은 GitHub Pages 가 10분 캐시해(max-age=600)
+  //   배포 직후엔 옛 입구가 새 판 게임 파일을 받는다(release_deploy roUseCode). 판 글은 입구에 박힌 것이라 옛것 — 게임이 켜지면 자기 판으로 바꾼다(BootLoader)
+  RoSetVerLabel: function (namePtr, idPtr) {
+    var v = document.getElementById("ro-ver"); if (!v) return;
+    var name = UTF8ToString(namePtr), id = UTF8ToString(idPtr).slice(0, 8);
+    if (v.firstChild && v.firstChild.nodeType == 3) v.firstChild.nodeValue = name + " ";
+    var s = v.querySelector("span"); if (s) s.textContent = id;
+  },
   RoResourceLoadFailed: function (messagePtr) {
     var entry = RoEntryUI(); entry.cancel(); entry.setRacePreview(false);
     var c = RoCard(0);
