@@ -575,6 +575,8 @@ mergeInto(LibraryManager.library, {
       if (!(p >= 0)) { ui.prog = null; if (ui.progEl) ui.progEl.remove(); ui.progEl = null; return; }
       p = Math.min(1, p); ui.prog = { p: p, label: label || "" };
       var host = ui.busyPanel && ui.busyPanel.isConnected ? ui.busyPanel : document.body;
+      // 생성 카드가 떠 있는 동안 화면 아래 막대는 숨긴다(QA v0.1.210 — 유령 프롤로그 뒤 종족 카드 '뒤로가기' 위에 '…100%' 막대가 겹침). 값은 두었다가 로딩 화면이 뜨면 거기로(538줄)
+      if (host === document.body && document.getElementById("ro-name-card")) { if (ui.progEl) ui.progEl.remove(); ui.progEl = null; return; }
       var el = ui.progEl;
       if (!el || !el.isConnected || el.parentNode !== host) {
         if (el) el.remove();
@@ -632,6 +634,8 @@ mergeInto(LibraryManager.library, {
   RoGhostIntroReady: function () {   // 혼자 장면이 그려지기 시작 — 먼저 띄운 로딩 화면·위쪽 띠를 걷는다(유니티 화면을 가리지 않게)
     var pre = window.__roPre; if (pre) pre.ghostBusy = 0;
     var bar = document.getElementById("ro-pre-bar"); if (bar) bar.remove();
+    // 템플릿 검은 로딩 칸은 접속 덮개·프롤로그·입장 때까지(최대 30초) 남게 해 두었다(WebGLNoUnityLogo __roWait) — 유령 길엔 그게 안 생겨 Camera 뒤에도 10초 넘게 검었다(QA v0.1.210). 위 검은 판이 덮고 있는 지금 숨긴다
+    var lc = document.getElementById("unity-loading-container"); if (lc) lc.style.display = "none";
     // 첫 로딩 화면(얼굴 로고 + 바, ro-pre-tail.js openGhost)이면 로고·바를 먼저 지워 검은 화면 → 잠깐 뒤 검은 판이 천천히 투명해진다(2026-11-26 사용자 "검은 화면에서 게임 화면이 스르륵")
     var gl = window.__roGhostLoad; window.__roGhostLoad = null;
     if (gl && gl.el && gl.el.isConnected) {
