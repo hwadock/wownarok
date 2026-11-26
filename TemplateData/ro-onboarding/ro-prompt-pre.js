@@ -571,6 +571,7 @@ mergeInto(LibraryManager.library, {
       return h;
     };
     ui.progress = function (p, label) {
+      if (p >= 0 && window.__roGhostLoad) { window.__roGhostLoad.map(p); return; }   // 유령 첫 로딩 화면(ro-pre-tail.js openGhost)의 바 하나로 이어 보인다(2026-11-26)
       if (!(p >= 0)) { ui.prog = null; if (ui.progEl) ui.progEl.remove(); ui.progEl = null; return; }
       p = Math.min(1, p); ui.prog = { p: p, label: label || "" };
       var host = ui.busyPanel && ui.busyPanel.isConnected ? ui.busyPanel : document.body;
@@ -623,11 +624,23 @@ mergeInto(LibraryManager.library, {
   // 유령 프롤로그 웹 훅(2026-11-26 사용자 "계정보다 플레이 먼저 해 보게", .claude/plan_ghost_intro.md) — 첫 방문인지는 index(ro-pre-load)가 한 번 정해
   //   window.__roGhost 에 두고(저장된 이름·로그인 유지 열쇠·ro_ghost_done 이 모두 없음, 주소 ?ghost=1 강제 / ?ghost=0 끔), C# 는 같은 답을 읽기만 한다(두 쪽 판단이 엇갈리지 않게).
   //   C# 순서: 부트 뒤 RoGhostIntroWanted() == 1 이면 로그인 카드 대신 혼자 장면 → 장면이 그려지면 RoGhostIntroReady() → 천사·화이트아웃 끝에 RoGhostIntroDone() = 생성 흐름(종족 선택부터).
-  RoGhostIntroWanted: function () { return window.__roGhost ? 1 : 0; },
+  RoGhostIntroWanted: function () { window.__roGhostAsked = 1; return window.__roGhost ? (window.__roGhostKind || 1) : 0; },   // 1 첫 방문 · 2 주소 강제 · 3 신규 버튼으로 새로 연 페이지(index ro-pre-load 가 정함)
+  // 로그아웃 뒤 '신규 유저 만들기'(QA v0.1.207 갇힘) — 이번 탭만 표시를 남기고 새로 연다. index ro-pre-load 가 읽고 지운다(__roGhostKind 3)
+  RoGhostReloadNew__deps: ["RoReload"],
+  RoGhostReloadNew: function () { try { sessionStorage.setItem("ro_ghost_once", "new"); } catch (_) {} _RoReload(); },   // 물어본 뒤엔 첫 로딩 화면의 '이미 계정이 있어요'를 걷는다(이미 유령 장면을 받기 시작)
   RoGhostIntroReady__deps: ["$RoEntryUI"],
   RoGhostIntroReady: function () {   // 혼자 장면이 그려지기 시작 — 먼저 띄운 로딩 화면·위쪽 띠를 걷는다(유니티 화면을 가리지 않게)
     var pre = window.__roPre; if (pre) pre.ghostBusy = 0;
     var bar = document.getElementById("ro-pre-bar"); if (bar) bar.remove();
+    // 첫 로딩 화면(얼굴 로고 + 바, ro-pre-tail.js openGhost)이면 로고·바를 먼저 지워 검은 화면 → 잠깐 뒤 검은 판이 천천히 투명해진다(2026-11-26 사용자 "검은 화면에서 게임 화면이 스르륵")
+    var gl = window.__roGhostLoad; window.__roGhostLoad = null;
+    if (gl && gl.el && gl.el.isConnected) {
+      var el = gl.el, inner = el.querySelector(".rgl-in"), link = el.querySelector(".rgl-login");
+      if (inner) inner.style.opacity = "0";
+      if (link) link.remove();
+      setTimeout(function () { el.style.transition = "opacity 1.6s ease"; el.style.opacity = "0"; el.style.pointerEvents = "none"; }, 750);
+      setTimeout(function () { el.remove(); }, 2500);
+    }
     var u = RoEntryUI(); u.hideBusy(); u.progress(-1);   // 유령 맵 진행률(LoadProgress.Zone, b6b69b2aa)을 지운다 — 남겨 두면 생성 뒤 마을 입장 로딩에 100% 로 다시 붙는다
     if (u.root && !document.getElementById("ro-name-card")) { u.root.remove(); u.root = u.top = null; }
   },
@@ -4155,9 +4168,39 @@ mergeInto(LibraryManager.library, {
   };
   // 유령 프롤로그(2026-11-26 사용자 "계정보다 플레이 먼저", .claude/plan_ghost_intro.md) — 첫 방문은 로그인 카드 대신 로딩 화면 + 띠만.
   //   걷는 때 = C# 가 혼자 장면을 그리기 시작해 RoGhostIntroReady 를 부를 때(그 전까진 엔진이 켜져도 유지). C# 가 예전처럼 로그인 카드를 부르면 그대로 카드로
+  // 2026-11-26 사용자 "최초 로딩화면 내 로고와 로딩바 이후 검은 화면에서 시작해서 게임 화면이 스르륵, 게임 타이틀 노출 안 함" — 포링·세계관 문구 대신
+  //   검은 바탕 + 얼굴 로고(index 의 #ro-logo 그림) + 금빛 로딩 바 하나. 바 = 엔진 받기 0~60% + 유령 맵 받기 60~100%(RoLoadProgress → ui.progress 가 넘겨줌).
+  //   아래 흐린 '이미 계정이 있어요 ›'(사용자 결정) = 새 기기로 온 기존 사용자 로그인 길 — C# 가 유령 프롤로그를 하기로 정하기 전까지만(RoGhostIntroWanted 가 __roGhostAsked).
+  //   걷기 = RoGhostIntroReady(RoPrompt.jslib)가 로고·바를 지우고 검은 판을 천천히 투명하게(스르륵 밝아짐)
   pre.openGhost = function () {
     if (pre.opened || pre.handed || window.__roUnityReady) return;
-    pre.opened = 1; pre.ghostBusy = 1; document.body.appendChild(bar);
-    RoEntryUI().busy("세계를 준비하고 있습니다");
+    pre.opened = 1; pre.ghostBusy = 1;
+    var logo = document.getElementById("ro-logo");
+    var el = document.createElement("div"); el.id = "ro-ghost-load";
+    el.style.cssText = "position:fixed;inset:0;z-index:10000;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;opacity:1;font-family:'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif";
+    el.innerHTML = "<div class='rgl-in' style='display:flex;flex-direction:column;align-items:center;gap:18px;transition:opacity .45s ease'>" +
+      (logo && logo.src ? "<img alt='' src='" + logo.src + "' style='width:min(18.4vw,101px);height:auto;image-rendering:pixelated;image-rendering:crisp-edges'>" : "") +
+      "<div style='box-sizing:border-box;width:min(56vw,220px);height:12px;padding:2px;border:2px solid #C9963F;border-radius:99px;background:#291a0f'>" +
+      "<div class='rgl-fill' style='height:100%;width:0;border-radius:99px;background:linear-gradient(#ffe38c,#f2b540);transition:width .25s linear'></div></div></div>" +
+      "<button type='button' class='rgl-login' style='position:absolute;left:50%;bottom:max(7vh,env(safe-area-inset-bottom));transform:translateX(-50%);background:none;border:0;padding:10px 14px;color:#EBDDBC;opacity:.55;font-size:13px;cursor:pointer;white-space:nowrap;transition:opacity .3s'>이미 계정이 있어요 ›</button>";
+    document.body.appendChild(el);
+    // 템플릿 로딩 칸(같은 로고 + 흰 막대)은 이 판 아래에 그대로 남아 있다가 판이 투명해질 때 게임 위로 드러난다(예전엔 #ro-entry-overlay 가 생기면 숨었다) → 지금 숨긴다
+    var tpl = document.getElementById("unity-loading-bar"); if (tpl) tpl.style.display = "none";
+    var fill = el.querySelector(".rgl-fill"), link = el.querySelector(".rgl-login"), mapP = -1;
+    window.__roGhostLoad = { el: el, map: function (p) { mapP = Math.max(mapP, Math.min(1, p)); } };
+    var t = setInterval(function () {
+      if (!el.isConnected) { clearInterval(t); return; }
+      var p = mapP >= 0 ? 0.6 + 0.4 * mapP : 0.6 * Math.min(1, window.__roLoadPct || 0);
+      fill.style.width = (p * 100).toFixed(1) + "%";
+      if (window.__roGhostAsked && link.isConnected) { link.style.opacity = "0"; link.disabled = true; setTimeout(function () { link.remove(); }, 300); }
+    }, 100);
+    // 기존 사용자 — 유령 프롤로그를 끄고 로그인 카드(이름·비밀번호)로. C# 는 첫 방문 카드를 열려다 떠 있는 이 카드를 그대로 쓴다(RoLoginOpen keepPre)
+    link.onclick = function () {
+      if (window.__roGhostAsked) return;
+      window.__roGhost = 0; pre.ghostBusy = 0;
+      clearInterval(t); el.remove(); window.__roGhostLoad = null;
+      document.body.appendChild(bar);
+      RoLoginOpen("", "", 0);
+    };
   };
 })();
