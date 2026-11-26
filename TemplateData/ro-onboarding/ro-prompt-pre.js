@@ -1816,7 +1816,13 @@ mergeInto(LibraryManager.library, {
     // 2026-11-11 사용자 "로그인하고 입장·신규 유저 버튼 크기 동일하게, 신규 유저는 파란색 쾌청한 버튼으로" — 크기는 로그인 버튼과 같고 색만 하늘~코발트 입체(누르면 내려앉음)
     create.className = "ro-login-new";
     create.style.cssText = "display:block;width:100%;margin:8px 0 0;padding:15px 6px;border:3px solid #7a5bc9;border-top-color:#f1eaff;border-radius:18px;background:linear-gradient(#e6dbff,#c3abf5 48%,#9a7be3);color:#2e1566;text-shadow:0 1px 0 #f3edff;box-shadow:inset 0 2px #ffffffa0,0 5px 0 #5a3ea6,0 7px 10px #0004;cursor:pointer;font-family:inherit;font-weight:900;font-size:23px;transition:transform .08s,box-shadow .08s";
-    create.onclick = function () { saveName(); SendMessage("BgmPlayer", "OnHtmlTitleMusic", "2"); RoNewFlow(""); };   // 새로 시작 누르는 순간도 — "2" = 종족 곡이 올라올 때까지 처음 화면 곡 유지(2026-11-18)
+    // 신규 = 유령 프롤로그부터(2026-11-27 사용자 "로그인 카드에서 신규 유저 만들기를 누르면 유령 프롤로그부터") — 카드를 닫고 로딩을 띄운 뒤 C# NetSession.OnHtmlGhostIntro
+    //   (월드를 열고 GhostIntro.Begin — 기획 세션). 끝은 RoGhostIntroDone → 종족 선택부터 지금 생성 흐름. 이미 본 기기(ro_ghost_done)여도 버튼으로 누르면 다시 보여 준다
+    create.onclick = function () {
+      saveName(); SendMessage("BgmPlayer", "OnHtmlTitleMusic", "2");   // "2" = 종족 곡이 올라올 때까지 처음 화면 곡 유지(2026-11-18)
+      window.__roGhost = 1; c.wrap.remove(); RoEntryUI().busy("세계를 준비하고 있습니다");   // 로딩은 장면이 그려지면 RoGhostIntroReady 가 걷는다
+      SendMessage("NetSession", "OnHtmlGhostIntro", "1");
+    };
     c.card.appendChild(create);
     RoAppInstall(c.card);
     var badPin = message === "비밀번호가 틀렸습니다";   // AccountStore.ReasonBadPin — 웹은 ro_acct_reject 메시지 → 끊김 → 이 카드가 message 와 함께 다시 뜬다
