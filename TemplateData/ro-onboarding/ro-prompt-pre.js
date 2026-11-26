@@ -628,7 +628,7 @@ mergeInto(LibraryManager.library, {
   RoGhostIntroReady: function () {   // 혼자 장면이 그려지기 시작 — 먼저 띄운 로딩 화면·위쪽 띠를 걷는다(유니티 화면을 가리지 않게)
     var pre = window.__roPre; if (pre) pre.ghostBusy = 0;
     var bar = document.getElementById("ro-pre-bar"); if (bar) bar.remove();
-    var u = RoEntryUI(); u.hideBusy();
+    var u = RoEntryUI(); u.hideBusy(); u.progress(-1);   // 유령 맵 진행률(LoadProgress.Zone, b6b69b2aa)을 지운다 — 남겨 두면 생성 뒤 마을 입장 로딩에 100% 로 다시 붙는다
     if (u.root && !document.getElementById("ro-name-card")) { u.root.remove(); u.root = u.top = null; }
   },
   RoGhostIntroDone__deps: ["$RoNewFlow", "$RoEntryUI"],
