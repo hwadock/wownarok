@@ -649,12 +649,16 @@ mergeInto(LibraryManager.library, {
     if (u.root && !document.getElementById("ro-name-card")) { u.root.remove(); u.root = u.top = null; }
   },
   RoGhostIntroDone__deps: ["$RoNewFlow", "$RoEntryUI"],
-  RoGhostIntroDone: function () {   // 화이트아웃 뒤 — 이 기기는 프롤로그를 봤다고 남기고(다음엔 로그인 카드), 하얀 화면에서 어두워지며 종족 선택부터 지금 생성 흐름 그대로
+  RoGhostIntroDone: function () {   // 암전 뒤 — 이 기기는 프롤로그를 봤다고 남기고(다음엔 로그인 카드), 검은 화면에서 밝아지며 종족 선택부터 지금 생성 흐름 그대로
     try { localStorage.setItem("ro_ghost_done", "1"); } catch (_) {}
     window.__roGhost = 0;
     RoNewFlow("");
-    var root = RoEntryUI().root;
-    if (root) { root.style.transition = "none"; root.style.background = "#fff"; void root.offsetWidth; root.style.transition = "background 1.2s ease"; root.style.background = "#100d0a"; setTimeout(function () { root.style.transition = ""; }, 1300); }
+    // 기획 43918b70e — 유니티 화면이 화이트아웃 → '5년 후..' → 암전(검정)인 채로 부른다. 검은 판을 맨 위에 덮고 1.2초에 걷어 종족 화면이 스르륵 밝아지게(예전엔 #fff 에서 어두워짐)
+    var fade = document.createElement("div");
+    fade.style.cssText = "position:fixed;inset:0;background:#000;z-index:2147483000;pointer-events:none;opacity:1";
+    document.body.appendChild(fade); void fade.offsetWidth;
+    fade.style.transition = "opacity 1.2s ease"; fade.style.opacity = "0";
+    setTimeout(function () { fade.remove(); }, 1300);
   },
   RoEntryReady: function () {
     // 월드에 들어온 계정 이름을 로그인 카드 이름 칸용(ro_login_name)으로 남긴다(QA 새 유저 v153 "로그아웃 뒤 이름 칸에 예전 이름") —
