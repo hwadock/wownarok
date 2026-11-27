@@ -2862,7 +2862,11 @@ mergeInto(LibraryManager.library, {
     // 사진을 넣으면 나타나는 다음 단계 버튼을 통통 튀게(2026-11-27 사용자 "보이스 생성 버튼이 띠용거리자") — 누를 때까지 1.2초마다 한 번 솟았다 내려앉음
     var boing = function (btn) {
       if (!document.getElementById("ro-boing-css")) { var s = document.createElement("style"); s.id = "ro-boing-css"; s.textContent = "@keyframes roBoing{0%,62%,100%{transform:translateY(0) scale(1)}70%{transform:translateY(-7px) scale(1.04,.97)}78%{transform:translateY(0) scale(.97,1.03)}86%{transform:translateY(-2px) scale(1.01)}}.ro-boing{animation:roBoing 1.2s ease-in-out infinite}"; document.head.appendChild(s); }
-      btn.classList.add("ro-race-next", "ro-boing");   // 모양은 '이미지 넣기'·'결정'과 같은 금빛 둥근 버튼(종족 색 따라감) — 기본 빨간 깎은 버튼이 따로 놀았다(2026-11-27 사용자 "기존 스타일 맞춰서")
+      btn.classList.add("ro-race-next", "ro-boing");
+      // 다음 단계로 넘기는 버튼은 주황(2026-11-27 사용자 "다음으로 넘어가는 버튼 컬러는 주황") — 금빛(ro-race-next, 종족 색 따라감)보다 앞서게 인라인 important
+      var ps = { "background": "linear-gradient(#ffb15c,#ff8a1f 48%,#e2600a)", "border-color": "#b8480a", "border-top-color": "#ffd3a0", "color": "#3d1402",
+                 "box-shadow": "inset 0 2px #fff6,0 5px 0 #7a2e06" };
+      for (var k in ps) btn.style.setProperty(k, ps[k], "important");   // 모양은 '이미지 넣기'·'결정'과 같은 금빛 둥근 버튼(종족 색 따라감) — 기본 빨간 깎은 버튼이 따로 놀았다(2026-11-27 사용자 "기존 스타일 맞춰서")
     };
     var usePhoto = function (f) {
       clearResume();
@@ -3024,7 +3028,9 @@ mergeInto(LibraryManager.library, {
           var other = a[0] === "glasses" ? "sunglasses" : a[0] === "sunglasses" ? "glasses" : "";
           var next = st.acc.filter(function (x) { return x !== a[0] && (!on || x !== other); });
           if (on) next.push(a[0]);
-          if (st.up || st.thumb) {   // 이미 넣은 사진은 옛 설정으로 만드는 중 — 지우고 다시 고르게
+          // 이미 올려 만드는 중(st.up)일 때만 지우고 다시 고르게 — 나만의 캐릭터는 의상까지 받은 뒤 한 번에 올리므로(showOutfit → upload) 사진만 넣은 상태에선
+          //   꾸미기를 바꿔도 사진을 그대로 둔다(2026-11-27 사용자 v0.1.218 "얼굴 사진 넣고 꾸미기 선택하면 넣었던 게 사라져 다시 넣어야 됨")
+          if (st.up) {
             invalidatePhoto(); st.acc = next;
             st.photoNotice = "설정을 바꿨습니다. 사진을 다시 선택해 주세요.";
             showPhoto(); return;
@@ -3209,7 +3215,7 @@ mergeInto(LibraryManager.library, {
         "display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#EBDDBC;overflow:hidden;position:relative";
       var paint = function () {
         box.style.borderColor = o.file ? "#4fe36a" : ""; box.style.boxShadow = o.file ? "0 0 10px rgba(79,227,106,.45)" : "";
-        if (voiceBtn) voiceBtn.style.display = o.file ? "" : "none";
+        if (voiceBtn) syncVoice();
         box.innerHTML = o.file
           ? "<span style='display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;background:#3fd65c;color:#fff;font-size:24px;font-weight:900'>&#10003;</span>" +
             "<span style='font-size:15px;font-weight:700;color:#bff5c8'>의상 사진을 넣었어요</span><span style='font-size:13px;opacity:.8'>아래 '보이스 생성'을 눌러 주세요 · 바꾸려면 다시 넣기</span>"
@@ -3227,10 +3233,13 @@ mergeInto(LibraryManager.library, {
       var row = document.createElement("div"); row.style.cssText = "display:flex;gap:8px;margin-top:4px";
       // 말로 설명(2026-11-23 사용자 "이미지 넣기 옆에 '말로 설명' 하나 추가") — 사진 없이 위 글만으로 옷을 만든다(/face/start 에 otext=1·memo, 서버 세션 짝).
       //   글이 비었으면 글칸을 밝히고 적게 한 뒤 다시 누르게 한다. 서버가 아직 otext 를 모르면 얼굴만 만들어지고 기본 의상(예전과 같음)
+      // 2026-11-27 사용자 "의상 화면 글 칸은 '글로 설명'을 누르면 나오게" — 처음엔 접혀 있고, 누르면 펼쳐져 글을 적고, 다시 누르면 접힌다(적은 글은 남음).
+      //   넘어가기는 '보이스 생성'(글이 있으면 나타남) — 사진 없이 글만 있으면 글로 옷을 만든다
       var talk = function () {
-        var t = (memo.value || "").trim();
-        if (!t) { memo.placeholder = "입고 싶은 옷을 적고 다시 눌러 주세요"; memo.style.borderColor = "#ffdb75"; memo.focus(); return; }
-        o.file = null; o.memo = t; o.text = true; st.outfit = o; go(true);
+        var open = memo.style.display === "none";
+        memo.style.display = open ? "" : "none";
+        if (open) { memo.placeholder = "원하는 옷·느낌 (예: 주황 도복에 파란 띠)"; memo.focus(); }
+        syncVoice();
       };
       [["사진 찍기", function () { saveResume(); (touch ? camIn : fileIn).click(); }], ["이미지 넣기", function () { saveResume(); fileIn.click(); }], ["글로 설명", talk]].forEach(function (d) {
         var b = c.mainBtn(d[0]); b.classList.add("ro-race-next"); b.style.flex = "1"; b.style.minWidth = "0"; b.style.marginTop = "8px"; b.style.fontSize = "clamp(13px,4.2vw,16px)"; b.style.whiteSpace = "nowrap"; b.onclick = d[1]; row.appendChild(b);   // 세 개라 좁은 폰(340)에서 '이미지 넣기'가 넘치지 않게 (2026-11-24: 0be20b571 때 onclick·appendChild 가 이 주석 안으로 들어가 버튼 셋이 안 붙었다)
@@ -3238,7 +3247,8 @@ mergeInto(LibraryManager.library, {
       var memo = document.createElement("input"); memo.type = "text"; memo.maxLength = 60; memo.value = o.memo || "";
       memo.placeholder = "원하는 옷·느낌 (예: 주황 도복에 파란 띠)";
       memo.style.cssText = "box-sizing:border-box;width:100%;margin-top:10px;padding:10px 12px;font:inherit;font-size:16px;color:#fff1cd;background:#2a1a11;border:2px solid #a76c3b;border-radius:12px;outline:none";
-      memo.oninput = function () { o.memo = memo.value; st.outfit = o; };
+      memo.oninput = function () { o.memo = memo.value; st.outfit = o; syncVoice(); };
+      memo.style.display = (o.memo || "").trim() ? "" : "none";
       var go = function (useOutfit) {   // 얼굴 사진 + (의상) → 한 번에 생성 요청 → 녹음
         st.outfit = useOutfit && o.file ? { file: o.file, memo: (o.memo || "").trim() }
           : useOutfit && o.text && (o.memo || "").trim() ? { file: null, memo: o.memo.trim(), text: true } : null;
@@ -3247,14 +3257,21 @@ mergeInto(LibraryManager.library, {
         startFaceProgress();
         afterPhoto();
       };
-      var voiceBtn = c.mainBtn("보이스 생성"); voiceBtn.style.marginTop = "12px"; voiceBtn.onclick = function () { go(true); }; boing(voiceBtn);
+      var voiceBtn = c.mainBtn("보이스 생성"); voiceBtn.style.marginTop = "12px"; boing(voiceBtn);
+      voiceBtn.onclick = function () {
+        var t = (memo.value || "").trim();
+        if (!o.file && t) { o.memo = t; o.text = true; st.outfit = o; }   // 사진 없이 글만 = 글로 옷 만들기
+        go(true);
+      };
+      // '보이스 생성'은 옷 사진을 넣었거나 글 칸에 글이 있을 때만
+      var syncVoice = function () { voiceBtn.style.display = o.file || (memo.style.display !== "none" && (memo.value || "").trim()) ? "" : "none"; };
       var skip = c.mainBtn("의상 사진 없이 진행");
       skip.classList.remove("ro-race-next");
       skip.style.cssText += ";margin-top:10px;font-size:16px;background:rgba(201,150,63,.12);color:#EBDDBC;clip-path:none;border:2px solid #C9963F;border-radius:12px;box-shadow:none;opacity:1";
       skip.onclick = function () { go(false); };
       var skipHint = document.createElement("div"); skipHint.textContent = "기본 의상 그대로 입어요";
       skipHint.style.cssText = "color:#EBDDBC;opacity:.7;font-size:12px;text-align:center;margin-top:4px";
-      c.card.appendChild(box); c.card.appendChild(memo); c.card.appendChild(row); c.card.appendChild(voiceBtn); c.card.appendChild(skip); c.card.appendChild(skipHint);
+      c.card.appendChild(box); c.card.appendChild(row); c.card.appendChild(memo); c.card.appendChild(voiceBtn); c.card.appendChild(skip); c.card.appendChild(skipHint);   // 글 칸은 '글로 설명' 아래에 펼쳐진다
       c.card.appendChild(c.stepBack(function () { showPhoto(); }));   // 뒤로가기 = 얼굴 사진
       paint();
     };
