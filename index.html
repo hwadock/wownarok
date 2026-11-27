@@ -99,7 +99,7 @@
       }
 
       var roGet = function (f) { try { var x = new XMLHttpRequest(); x.open("GET", f + "?t=" + Date.now(), false); x.send(); return x.status == 200 ? x.responseText.trim() : ""; } catch (e) { return ""; } };
-      var roCode = "af81c660xe2347fa9";   // 처음엔 이 입구에 박힌 판 — 실제 판은 아래 tryStart 가 서버 PC 입구(대체 Pages)에서 읽어 바꾼다
+      var roCode = "944e8454x5b80da75";   // 처음엔 이 입구에 박힌 판 — 실제 판은 아래 tryStart 가 서버 PC 입구(대체 Pages)에서 읽어 바꾼다
       var roCdn = roGet("cdn.txt").replace(/\/+$/, ""); if (!/^https?:\/\/[^\s\/"'<>]+(\/[^\s"'<>]*)?$/.test(roCdn)) roCdn = "";
       var buildUrl = "b_" + roCode;
       // 휴대폰판 고르기(2026-11-12 사용자 결정 '그래픽 능력 검사') — DXT(s3tc)를 못 쓰고 ASTC 를 쓰는 기기는 ASTC 판:
@@ -384,6 +384,9 @@ var cw=0,ch=0,sh=0,sAt=0,own=false;
 if(phone()&&window.config){window.config.matchWebGLToCanvasSize=false;own=true;}
 // 2026-11-17 QA v0.1.146 '로딩 중 창 크기가 바뀌면 HUD 가 옛 크기로 남아 잘림' — 맞춤을 껐으면(own) 그 뒤 휴대폰 판정이 바뀌어도 여기서 계속 맞춘다
 //   (예전엔 phone() 이 거짓이 되면 아무도 버퍼를 안 맞춰 옛 크기로 남았다). 가로 휴대폰일 때만 쉰다
+var blurAt=0;
+function isText(ae){return !!(ae&&(ae.tagName==='TEXTAREA'||(ae.tagName==='INPUT'&&!/^(button|checkbox|radio|file|range|submit)$/.test(ae.type))||ae.isContentEditable));}
+document.addEventListener('focusout',function(e){if(isText(e.target)){blurAt=Date.now();setTimeout(sizeCanvas,750);}},true);
 function sizeCanvas(){
  if(!own||(phone()&&landscape()))return;
  var cv=document.getElementById('unity-canvas');if(!cv)return;
@@ -391,13 +394,21 @@ function sizeCanvas(){
  var d=(window.config&&window.config.devicePixelRatio)||Math.min(window.devicePixelRatio||1,2);
  var w=Math.round(r.width*d),h=Math.round(r.height*d);
  if(w===cw&&h===ch){sh=0;return;}
- // 높이만 조금(15% 미만) 다르면 바로 다시 잡지 않는다(주소 표시줄이 들고 나는 순간마다 새로 잡혀 터졌다). 다만 그 크기가 2.5초 넘게 그대로면
+ // 2026-11-28 사용자 "버그 의견 보내기가 원인 같기도" — 의견·채팅 글 칸에 자판이 올라오면 창 높이가 바뀌어(안드로이드는 15% 넘게 → 바로) 열 때·닫을 때 두 번 버퍼를 새로 잡아 '툭'.
+ //   글을 쓰는 동안(글 칸에 초점)은 버퍼를 그대로 두고, 자판이 내려가 크기가 돌아오면 아무 일도 없다(다르면 위 0.25초 규칙으로 맞춤)
+ //   글 칸에서 막 나온 뒤 0.7초도 기다린다 — 안드로이드는 자판이 다 내려간 뒤에야 창 크기 알림이 와, 그 사이 줄어든 크기로 한 번 잡았다가 되돌리는 일이 없게
+ if(isText(document.activeElement)){sh=0;return;}
+ if(Date.now()-blurAt<700){sh=0;return;}
+ // 높이만 조금(15% 미만) 다르면 바로 다시 잡지 않는다(주소 표시줄이 들고 나는 순간마다 새로 잡혀 터졌다). 다만 그 크기가 잠깐(아래 0.25초) 그대로면
  //   맞춘다 — 안 맞추면 그림이 세로로 눌린 채 남는다(2026-11-13 사용자 "세로가 좀 찌부되어 보인다").
- if(cw&&Math.abs(w-cw)<=2&&Math.abs(h-ch)<ch*0.15){
-  if(Math.abs(h-ch)<=2)return;
-  var now=Date.now();
-  if(h!==sh){sh=h;sAt=now;return;}
-  if(now-sAt<2500)return;
+ // 2026-11-28 사용자 "가끔 해상도가 안 맞아서 화면이 툭 하면서 해상도 조절이 되는 경우가 잦다" — 2.5초 동안 옛 버퍼를 눌러 늘인 채 두다가 한꺼번에 맞춰
+ //   '안 맞음 → 툭'이 보였다(웹 세션 재현: 높이 7% 줄이면 1.5~3.5초 뒤 맞춤). 주소 표시줄이 다 움직여 크기가 0.25초 그대로면 바로 맞춘다(움직이는 동안 여러 번 새로 잡지는 않는다)
+ //   15% 넘게 바뀌어도(자판이 내려가는 도중의 중간 크기 등) 같다 — 크기가 0.25초 그대로일 때만 새로 잡는다(첫 맞춤은 바로)
+ if(cw){
+  if(Math.abs(w-cw)<=2&&Math.abs(h-ch)<=2)return;
+  var now=Date.now(),k=w+'x'+h;
+  if(k!==sh){sh=k;sAt=now;setTimeout(sizeCanvas,280);return;}
+  if(now-sAt<250)return;
  }
  sh=0;
  cw=w;ch=h;cv.width=w;cv.height=h;
@@ -463,8 +474,8 @@ window.addEventListener('popstate',function(){
 });
 })();
 </script>
-<script id="ro-pre-load">(function(){var q=location.search,keep=false,g=false;try{keep=(localStorage.getItem('ro_login_keep')||'').indexOf('\n')>0;g=!keep&&!localStorage.getItem('ro_login_name')&&!localStorage.getItem('ro_ghost_done');}catch(e){}var k=1,so=null;try{so=sessionStorage.getItem('ro_ghost_once');sessionStorage.removeItem('ro_ghost_once');}catch(e){}if(so){g=true;k=3;}if(/[?&]ghost=1/.test(q)){g=true;if(k<2)k=2;}if(/[?&]ghost=0/.test(q))g=false;window.__roGhost=g;window.__roGhostKind=k;if(/[?&]nopre\b/.test(q))return;var s=document.createElement('script');s.src='TemplateData/ro-onboarding/ro-prompt-pre.js?v=c2240ca1c307';s.onload=function(){var p=window.__roPre;if(p&&p.open)(g&&p.openGhost?p.openGhost:keep&&p.openKeep?p.openKeep:p.open)();};document.body.appendChild(s);})();</script>
-<div id="ro-ver" aria-hidden="true" style="position:fixed;left:calc(8px + env(safe-area-inset-left));bottom:calc(6px + env(safe-area-inset-bottom));z-index:2147483000;pointer-events:none;font:700 12px/1.2 'Noto Sans KR','Malgun Gothic',sans-serif;color:rgba(255,255,255,.6);text-shadow:0 1px 2px #000a;letter-spacing:.02em;background:rgba(20,14,10,.55);padding:2px 7px;border-radius:7px">v0.1.222 <span style="opacity:.55;font-weight:400">af81c660</span></div>
+<script id="ro-pre-load">(function(){var q=location.search,keep=false,g=false;try{keep=(localStorage.getItem('ro_login_keep')||'').indexOf('\n')>0;g=!keep&&!localStorage.getItem('ro_login_name')&&!localStorage.getItem('ro_ghost_done');}catch(e){}var k=1,so=null;try{so=sessionStorage.getItem('ro_ghost_once');sessionStorage.removeItem('ro_ghost_once');}catch(e){}if(so){g=true;k=3;}if(/[?&]ghost=1/.test(q)){g=true;if(k<2)k=2;}if(/[?&]ghost=0/.test(q))g=false;window.__roGhost=g;window.__roGhostKind=k;if(/[?&]nopre\b/.test(q))return;var s=document.createElement('script');s.src='TemplateData/ro-onboarding/ro-prompt-pre.js?v=7fb136f32eae';s.onload=function(){var p=window.__roPre;if(p&&p.open)(g&&p.openGhost?p.openGhost:keep&&p.openKeep?p.openKeep:p.open)();};document.body.appendChild(s);})();</script>
+<div id="ro-ver" aria-hidden="true" style="position:fixed;left:calc(8px + env(safe-area-inset-left));bottom:calc(6px + env(safe-area-inset-bottom));z-index:2147483000;pointer-events:none;font:700 12px/1.2 'Noto Sans KR','Malgun Gothic',sans-serif;color:rgba(255,255,255,.6);text-shadow:0 1px 2px #000a;letter-spacing:.02em;background:rgba(20,14,10,.55);padding:2px 7px;border-radius:7px">v0.1.223 <span style="opacity:.55;font-weight:400">944e8454</span></div>
 <script>(function(){var v=document.getElementById('ro-ver');if(!v)return;setInterval(function(){if((window.roVariant==='_m'||window.roVariant==='_a')&&!v.__m){v.__m=1;v.appendChild(document.createTextNode(window.roVariant==='_a'?' · 안드로이드판':' · i'));}var o=document.getElementById('ro-entry-overlay'),on=!!(o&&o.isConnected);if(on)window.__roInWorld=0;var pr=document.getElementById('ro-prologue');v.style.display=(pr&&pr.isConnected)?'none':(on||!window.__roInWorld)?'block':'none';},400);})();</script>
 </body>
 </html>

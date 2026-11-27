@@ -675,11 +675,41 @@ mergeInto(LibraryManager.library, {
     window.__roGhost = 0;
     RoNewFlow("");
     // 기획 43918b70e — 유니티 화면이 화이트아웃 → '5년 후..' → 암전(검정)인 채로 부른다. 검은 판을 맨 위에 덮고 1.2초에 걷어 종족 화면이 스르륵 밝아지게(예전엔 #fff 에서 어두워짐)
+    // 2026-11-28 사용자 "빛덩어리가 들어가고(천사 → 5년 후..) 종족 고르기 전에 검은 화면에 웅장한 BGM 이 깔리면서 와우나로크 로고가 스르륵 — 터치 투 스크린이 떠 있고,
+    //   누르면 로고가 스르륵 사라지고 종족 고르기. 종족을 고르면 그 종족 곡(이후 지금 흐름)". 곡 = 처음 화면 곡(title_bgm, 사용자 고름) — "1" 로 크게, 누르면 "2"(종족 곡이 울릴 때까지 유지)
+    SendMessage("BgmPlayer", "OnHtmlTitleMusic", "1");
     var fade = document.createElement("div");
-    fade.style.cssText = "position:fixed;inset:0;background:#000;z-index:2147483000;pointer-events:none;opacity:1";
-    document.body.appendChild(fade); void fade.offsetWidth;
-    fade.style.transition = "opacity 1.2s ease"; fade.style.opacity = "0";
-    setTimeout(function () { fade.remove(); }, 1300);
+    fade.style.cssText = "position:fixed;inset:0;background:#000;z-index:2147483000;opacity:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4vh;cursor:pointer;-webkit-tap-highlight-color:transparent";
+    var logo = document.createElement("img"); logo.alt = "";
+    logo.style.cssText = "width:min(78vw,420px);max-height:56vh;object-fit:contain;opacity:0;transform:scale(.96);transition:opacity 1.4s ease,transform 3.5s ease-out;pointer-events:none";
+    // 글자 = 그림(2026-11-28 사용자 "터치 투 스크린 이미지로 판타지스럽게" — 시안 A 금속 글자, Concept/ui/touch_screen, 768x88). 그림이 안 오면 alt 글이 보인다
+    var touch = document.createElement("img"); touch.alt = "TOUCH TO SCREEN"; touch.src = "TemplateData/ro-onboarding/touch_screen.webp";
+    touch.style.cssText = "width:min(72vw,384px);height:auto;font-family:'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-weight:900;font-size:18px;letter-spacing:.2em;color:#FFE7A0;opacity:0;pointer-events:none";
+    if (!document.getElementById("ro-touch-style")) { var ts = document.createElement("style"); ts.id = "ro-touch-style"; ts.textContent = "@keyframes roTouchBlink{0%,100%{opacity:.4}50%{opacity:1}}"; document.head.appendChild(ts); }
+    // 2026-11-28 사용자 "로고 뒤엔 원래 있던 배경 — 그 갈색 마름모 무늬" = 종족 카드 안쪽 바탕(갈색 + 가죽 마름모 무늬 ro-tex-leather, onboarding-fx.js 가 겹치기로 입힘). 암전(검정)에서 로고와 함께 밝아진다
+    var bg = document.createElement("div"); bg.className = "ro-tex ro-tex-leather"; bg.style.cssText = "position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,#71462c,#352014 80%);isolation:isolate;opacity:0;transition:opacity 1.4s ease;pointer-events:none";
+    logo.style.position = touch.style.position = "relative";
+    fade.appendChild(bg); fade.appendChild(logo); fade.appendChild(touch); document.body.appendChild(fade);
+    var ready = false, left = false;
+    var go = function () {
+      if (go.done) return; go.done = true;
+      void logo.offsetWidth; bg.style.opacity = "1"; logo.style.opacity = "1"; logo.style.transform = "scale(1)";
+      setTimeout(function () { if (!left) { touch.style.animation = "roTouchBlink 1.6s ease-in-out infinite"; ready = true; } }, 1500);   // 로고가 다 뜬 뒤 글자·누름
+    };
+    var leave = function (e) {
+      if (!ready || left) return; left = true;
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      SendMessage("BgmPlayer", "OnHtmlTitleMusic", "2");   // 종족 곡이 울릴 때까지 처음 화면 곡 유지(새로 시작 흐름과 같은 값)
+      touch.style.animation = "none"; touch.style.transition = "opacity .5s ease"; touch.style.opacity = "0";
+      logo.style.transition = "opacity .8s ease,transform .8s ease-in"; logo.style.opacity = "0";
+      setTimeout(function () { fade.style.transition = "opacity 1.2s ease"; fade.style.opacity = "0"; fade.style.pointerEvents = "none"; }, 800);
+      setTimeout(function () { fade.remove(); }, 2100);
+    };
+    fade.addEventListener("pointerdown", leave);
+    fade.addEventListener("keydown", leave); fade.tabIndex = -1; setTimeout(function () { try { fade.focus(); } catch (_) {} }, 0);
+    logo.onload = logo.onerror = function () { setTimeout(go, 300); };
+    setTimeout(go, 1500);   // 그림이 늦어도 1.5초 뒤엔 진행
+    logo.src = RoEntryUI().logoUrl();
   },
   RoEntryReady: function () {
     // 월드에 들어온 계정 이름을 로그인 카드 이름 칸용(ro_login_name)으로 남긴다(QA 새 유저 v153 "로그아웃 뒤 이름 칸에 예전 이름") —
