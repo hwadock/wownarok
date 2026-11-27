@@ -2838,13 +2838,19 @@ mergeInto(LibraryManager.library, {
         "<span style='font-size:15px;font-weight:700;color:#bff5c8'>" + label + "</span>";
       setTimeout(then, 800);
     };
+    // 사진을 넣으면 나타나는 다음 단계 버튼을 통통 튀게(2026-11-27 사용자 "보이스 생성 버튼이 띠용거리자") — 누를 때까지 1.2초마다 한 번 솟았다 내려앉음
+    var boing = function (btn) {
+      if (!document.getElementById("ro-boing-css")) { var s = document.createElement("style"); s.id = "ro-boing-css"; s.textContent = "@keyframes roBoing{0%,62%,100%{transform:translateY(0) scale(1)}70%{transform:translateY(-7px) scale(1.04,.97)}78%{transform:translateY(0) scale(.97,1.03)}86%{transform:translateY(-2px) scale(1.01)}}.ro-boing{animation:roBoing 1.2s ease-in-out infinite}"; document.head.appendChild(s); }
+      btn.classList.add("ro-race-next", "ro-boing");   // 모양은 '이미지 넣기'·'결정'과 같은 금빛 둥근 버튼(종족 색 따라감) — 기본 빨간 깎은 버튼이 따로 놀았다(2026-11-27 사용자 "기존 스타일 맞춰서")
+    };
     var usePhoto = function (f) {
       clearResume();
       stopCam();
       if (st.race !== 0 && st.race !== 1) { showRace(); return; }
       if (st.thumb) URL.revokeObjectURL(st.thumb);
       st.thumb = URL.createObjectURL(f); st.photoNotice = ""; st.noPhoto = false;
-      if (st.mode === "custom" && !st.started) { st.faceFile = f; showInserted("얼굴 사진을 넣었어요", showOutfit, st.photoBox); return; }   // 나만의 캐릭터 = 얼굴과 의상을 한 번에 만든다 — 의상 단계까지 받은 뒤 올린다
+      // 2026-11-27 사용자 "사진 넣으면 바로 넘기지 말고 확인을 한 번 — 꾸미기를 골라야 하니, 사진 칸에 체크 표시 + 다음 버튼"(보기 창: '다음' → 의상)
+      if (st.mode === "custom" && !st.started) { st.faceFile = f; if (st.photoInserted && st.photoBox && st.photoBox.isConnected) st.photoInserted(); else showOutfit(); return; }   // 나만의 캐릭터 = 얼굴과 의상을 한 번에 만든다 — 의상 단계까지 받은 뒤 올린다
       upload(f);
       startFaceProgress();
       if (st.started) { c.wrap.remove(); wait(); } else afterPhoto();   // 2026-11-10 사진 다음 = 목소리 녹음(이름·비번은 사진 앞으로)
@@ -3116,8 +3122,10 @@ mergeInto(LibraryManager.library, {
       idle = function () {
         camMode(false);
         // 넣은 사진은 다시 보여 주지 않는다(2026-11-09 사용자 "찍은 이미지는 안 보여준다") — 넣었다는 표시만
-        if (st.thumb) box.innerHTML = "<svg width='56' height='56' viewBox='0 0 64 64' fill='none' stroke='var(--ro-ui-edge,#C9963F)' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'><circle cx='32' cy='32' r='26'/><path d='M20 33 l9 9 l16 -18'/></svg>" +
-          "<span style='font-size:16px;font-weight:700'>사진을 넣었어요 — 바꾸려면 아래 버튼</span>";
+        // 넣었으면 칸만 초록 테두리 + 초록 체크(2026-11-24·25 사용자 "도형으로, 녹색으로, 얌전하게" 시안 A) — 이제 넘어가지 않고 그대로 머문다(2026-11-27)
+        box.style.borderColor = st.thumb ? "#4fe36a" : ""; box.style.boxShadow = st.thumb ? "0 0 10px rgba(79,227,106,.45)" : "";
+        if (st.thumb) box.innerHTML = "<span style='display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;background:#3fd65c;color:#fff;font-size:24px;font-weight:900'>&#10003;</span>" +
+          "<span style='font-size:15px;font-weight:700;color:#bff5c8'>얼굴 사진을 넣었어요</span><span style='font-size:13px;opacity:.8'>꾸미기를 고른 뒤 아래 버튼 · 사진을 바꾸려면 다시 넣기</span>";
         else box.innerHTML = "<svg width='64' height='64' viewBox='0 0 64 64' fill='none' stroke='var(--ro-ui-edge,#C9963F)' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'>" +
           "<rect x='6' y='16' width='52' height='38' rx='6'/><path d='M22 16 l5 -7 h10 l5 7'/><circle cx='32' cy='35' r='10'/></svg>" +
           "<span style='font-size:16px;font-weight:700'>얼굴이 정면으로 잘 보이면 좋아요</span>";
@@ -3153,11 +3161,15 @@ mergeInto(LibraryManager.library, {
         c.card.appendChild(skipHint);
       }
       idle();
-      if (st.thumb && !st.started) {
-        var next = c.mainBtn("다음");
+      if (!st.started) {   // 사진을 넣기 전엔 숨겨 두고, 넣으면 그 자리에서 보인다(카드를 다시 그리지 않아 고른 꾸미기·스크롤이 그대로)
+        var next = c.mainBtn(st.mode === "custom" ? "의상 생성" : "다음");   // 2026-11-27 사용자 "보이스 생성 버튼이 아니라 의상 생성 버튼"
         next.onclick = function () { stopCam(); if (st.mode === "custom" && st.faceFile) showOutfit(); else afterPhoto(); };
-        c.card.appendChild(next);
-      }
+        next.style.display = st.thumb ? "" : "none";
+        boing(next);
+        next.style.marginTop = "12px";
+        c.card.insertBefore(next, orLine);   // '사진 없이 진행' 위(꾸미기 바로 아래 — 2026-11-27 사용자 "사진 없이 진행 위에")
+        st.photoInserted = function () { idle(); next.style.display = ""; if (next.scrollIntoView) next.scrollIntoView({ block: "nearest", behavior: "smooth" }); };
+      } else st.photoInserted = null;
       if (!st.started) c.card.appendChild(c.stepBack(function () { stopCam(); lowPower(false); askFace(); }));   // 뒤로가기 = 4 '내 얼굴로 만들까요?'(얼굴 고르기에서 돌아온 사진 단계는 없음)
     };
 
@@ -3175,9 +3187,11 @@ mergeInto(LibraryManager.library, {
       box.style.cssText = "box-sizing:border-box;width:100%;height:clamp(110px,24vh,210px);border:3px solid #a76c3b;border-radius:18px;background:radial-gradient(ellipse,#4c2c1a,#28170f);box-shadow:inset 0 3px 8px #0006;" +
         "display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#EBDDBC;overflow:hidden;position:relative";
       var paint = function () {
+        box.style.borderColor = o.file ? "#4fe36a" : ""; box.style.boxShadow = o.file ? "0 0 10px rgba(79,227,106,.45)" : "";
+        if (voiceBtn) voiceBtn.style.display = o.file ? "" : "none";
         box.innerHTML = o.file
-          ? "<svg width='56' height='56' viewBox='0 0 64 64' fill='none' stroke='var(--ro-ui-edge,#C9963F)' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'><circle cx='32' cy='32' r='26'/><path d='M20 33 l9 9 l16 -18'/></svg>" +
-            "<span style='font-size:16px;font-weight:700'>옷 사진을 넣었어요 — 바꾸려면 아래 버튼</span>"
+          ? "<span style='display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;background:#3fd65c;color:#fff;font-size:24px;font-weight:900'>&#10003;</span>" +
+            "<span style='font-size:15px;font-weight:700;color:#bff5c8'>의상 사진을 넣었어요</span><span style='font-size:13px;opacity:.8'>아래 '보이스 생성'을 눌러 주세요 · 바꾸려면 다시 넣기</span>"
           : "<svg width='64' height='64' viewBox='0 0 64 64' fill='none' stroke='var(--ro-ui-edge,#C9963F)' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'>" +
             "<path d='M22 8 l-14 8 l5 12 l6 -3 v31 h26 v-31 l6 3 l5 -12 l-14 -8 q-5 6 -10 6 q-5 0 -10 -6 z'/></svg>" +
             "<span style='font-size:16px;font-weight:700'>옷 전체가 잘 보이면 좋아요</span>";
@@ -3185,7 +3199,7 @@ mergeInto(LibraryManager.library, {
       var mk = function (capture) {
         var i = document.createElement("input"); i.type = "file"; i.accept = "image/*"; i.style.display = "none";
         if (capture) i.setAttribute("capture", "environment");   // 휴대폰 = 뒤 카메라(옷을 찍는다)
-        i.onchange = function () { if (!i.isConnected) return; var f = i.files && i.files[0]; if (f) { o.file = f; o.memo = memo.value; st.outfit = o; paint(); showInserted("의상 사진을 넣었어요", function () { go(true); }, box); } };   // 넣자마자 다음(목소리 녹음)
+        i.onchange = function () { if (!i.isConnected) return; var f = i.files && i.files[0]; if (f) { o.file = f; o.memo = memo.value; st.outfit = o; paint(); if (voiceBtn.scrollIntoView) voiceBtn.scrollIntoView({ block: "nearest", behavior: "smooth" }); } };   // 넣어도 넘기지 않음 — '보이스 생성'을 눌러 녹음으로(2026-11-27 사용자 "의상 넣으면 바로 넘기지 말고")
         c.card.appendChild(i); return i;
       };
       var fileIn = mk(false), camIn = mk(true);
@@ -3212,13 +3226,14 @@ mergeInto(LibraryManager.library, {
         startFaceProgress();
         afterPhoto();
       };
+      var voiceBtn = c.mainBtn("보이스 생성"); voiceBtn.style.marginTop = "12px"; voiceBtn.onclick = function () { go(true); }; boing(voiceBtn);
       var skip = c.mainBtn("의상 사진 없이 진행");
       skip.classList.remove("ro-race-next");
       skip.style.cssText += ";margin-top:10px;font-size:16px;background:rgba(201,150,63,.12);color:#EBDDBC;clip-path:none;border:2px solid #C9963F;border-radius:12px;box-shadow:none;opacity:1";
       skip.onclick = function () { go(false); };
       var skipHint = document.createElement("div"); skipHint.textContent = "기본 의상 그대로 입어요";
       skipHint.style.cssText = "color:#EBDDBC;opacity:.7;font-size:12px;text-align:center;margin-top:4px";
-      c.card.appendChild(box); c.card.appendChild(memo); c.card.appendChild(row); c.card.appendChild(skip); c.card.appendChild(skipHint);
+      c.card.appendChild(box); c.card.appendChild(memo); c.card.appendChild(row); c.card.appendChild(voiceBtn); c.card.appendChild(skip); c.card.appendChild(skipHint);
       c.card.appendChild(c.stepBack(function () { showPhoto(); }));   // 뒤로가기 = 얼굴 사진
       paint();
     };
