@@ -340,7 +340,10 @@ mergeInto(LibraryManager.library, {
         var kbTop = vv.offsetTop + vv.height;
         // 안드로이드 크롬 overlays-content 는 키보드가 덮기만 해 visualViewport 가 안 줄어 키보드를 못 봤다(2026-11-11 사용자 폰 — 창·입력줄이 키보드 밑에) → 크롬 VirtualKeyboard 가 알려 주는 키보드 위끝도 본다
         var vk = navigator.virtualKeyboard;
-        if (vk && vk.overlaysContent && vk.boundingRect && vk.boundingRect.height > 0) kbTop = Math.min(kbTop, vk.boundingRect.top);
+        // 자판이 화면을 이미 줄였으면(창 높이가 열 때보다 15% 넘게 줄어듦 — 덮기 설정을 안 따르는 브라우저) 입력줄(bottom:0)은 벌써 자판 위 —
+        //   자판 사각형으로 한 번 더 올리면 화면 위쪽(이름·HP 위)으로 붙고 게임 채팅창까지 따라 올라가 HUD 를 덮었다(2026-11-27 사용자 v0.1.216 휴대폰)
+        var resized = (chatFullH > 0 && window.innerHeight < chatFullH * 0.85) || (screen && screen.height > 0 && window.innerHeight < screen.height * 0.62);   // 열 때 이미 자판이 떠 있었어도 화면 높이와 견줘 안다
+        if (!resized && vk && vk.overlaysContent && vk.boundingRect && vk.boundingRect.height > 0) kbTop = Math.min(kbTop, vk.boundingRect.top);
         // 올릴 양 = 입력줄의 원래(옮기기 전) 아래끝 - 키보드 위끝. 예전엔 '창 높이 - 키보드 위끝' 으로 빼서, 첫 열기 때 키보드가 창을 이미 줄여
         //   입력줄(bottom:0)이 벌써 키보드 위에 있는데 키보드 높이만큼 한 번 더 올려 화면 가운데로 갔다(2026-11-17 사용자 폰 v0.1.146 — 껐다 켜면 정상)
         bar.style.transform = "";
@@ -348,17 +351,18 @@ mergeInto(LibraryManager.library, {
         bar.style.transform = gap > 1 ? "translateY(" + (-gap) + "px)" : "";
         // 게임 채팅 창(유니티 HUD chat)도 키보드 + 입력줄이 덮은 만큼 올리게 — 캔버스 높이 비율을 보낸다(키보드가 없으면 0 = 원래 자리)
         var ratio = 0;
-        if (gap > 1) {
+        if (gap > 1 || resized) {   // 화면이 줄어든 경우엔 입력줄이 캔버스 아래를 덮으니 그만큼 채팅창을 올린다
           var cv = document.querySelector("#unity-canvas"), cr = cv ? cv.getBoundingClientRect() : null;
           if (cr && cr.height > 0) ratio = Math.max(0, Math.min(0.9, (cr.bottom - bar.getBoundingClientRect().top) / cr.height));
         }
         sendKb(ratio);
       };
-      var lastKb = -1;
+      var lastKb = -1, chatFullH = 0;   // chatFullH = 채팅을 열 때(자판 전) 창 높이
       var sendKb = function (r) { r = Math.round(r * 1000) / 1000; if (r === lastKb) return; lastKb = r; try { SendMessage("chat", "OnHtmlKeyboard", String(r)); } catch (_) {} };
       var saved = null;
       window.__roChatShow = function () {
         if (!saved) {
+          chatFullH = window.innerHeight;
           var de = document.documentElement, b = document.body;
           saved = { meta: meta ? meta.getAttribute("content") : null, de: de.style.overflow, bo: b.style.overflow, bp: b.style.position, bt: b.style.top, bl: b.style.left, bw: b.style.width, bh: b.style.height };
           if (meta && !/interactive-widget/.test(saved.meta || "")) meta.setAttribute("content", (saved.meta ? saved.meta + ", " : "") + "interactive-widget=overlays-content");
@@ -468,6 +472,8 @@ mergeInto(LibraryManager.library, {
         if (typing && ui.fitH && avail < ui.fitH - 40) return;
         ui.fitH = avail;
         wrap.style.zoom = "";
+        var fillIn = wrap.firstChild && wrap.firstChild.firstChild;   // 아래 '종족 카드 높이 맞추기'가 넣은 위·아래 여백을 먼저 뺀 뒤 잰다
+        if (fillIn && fillIn.__roFillPad) { fillIn.style.paddingTop = fillIn.__roFillPad[0]; fillIn.style.paddingBottom = fillIn.__roFillPad[1]; fillIn.__roFillPad = null; }
         var h = wrap.offsetHeight, other = ui.root.scrollHeight - h;
         // 카드 세로는 화면 높이의 70% 까지(2026-11-11 사용자 아이폰 "너무 길게 늘어난다, 최대 이 정도 안으로" — 로그인 카드가 화면의 80% 를 넘게 차지했다). 넘으면 통째로 줄인다(최소 0.8배)
         //   zoom 이 높이에 어떻게 먹는지 브라우저마다 달라(크롬은 두 번 먹는 듯 줄었다) 줄인 뒤 실제 보이는 높이를 다시 재 한 번 맞춘다
@@ -502,6 +508,21 @@ mergeInto(LibraryManager.library, {
           var rw = (wrap.firstChild || wrap).getBoundingClientRect().width, maxW = Math.min(window.innerWidth, document.documentElement.clientWidth || window.innerWidth) - 24;
           if (!(maxW > 0 && rw > maxW + 1)) break;
           wrap.style.zoom = (parseFloat(wrap.style.zoom) || 1) * maxW / rw;
+        }
+        // 2026-11-27 사용자 아이폰 "비번 화면부터 그 이후 사진 고르기부터 화면에 꽉 안 참"(폴드는 꽉 참) — 좁은 세로 폰은 틀 폭이 이미 화면의 90% 라 키우면 양옆이 잘린다.
+        //   종족 카드(ro-race-wide)의 틀 높이를 재 두고, 같은 생성 창의 다음 단계들은 틀 높이를 그만큼으로 맞춘다(모자란 높이를 내용 위·아래 여백으로 반씩). 로그인 카드는 새 창이라 해당 없음
+        if (fillIn && window.innerWidth < 600 && window.innerHeight > window.innerWidth) {
+          var rimH = wrap.firstChild.getBoundingClientRect().height;
+          if (wrap.classList.contains("ro-race-wide")) wrap.__roFillH = rimH;
+          else if (wrap.__roFillH && (parseFloat(wrap.style.zoom) || 1) > 0.97) {   // 화면보다 길어 눈에 띄게 줄인 카드는 그대로(위 lim 계산은 짧은 카드에도 0.99 쯤 주는 일이 있어 배율로 본다)
+            var d = Math.min(wrap.__roFillH - rimH, avail - wrap.firstChild.getBoundingClientRect().bottom - 2);
+            var fz = parseFloat(wrap.style.zoom) || 1;   // d 는 보이는 크기 — 여백은 배율 전 값으로
+            if (d > 2) {
+              var cs = getComputedStyle(fillIn), keep = [fillIn.style.paddingTop, fillIn.style.paddingBottom];   // 카드 자체 인라인 여백(24px 등)은 되돌릴 때 살린다
+              fillIn.style.paddingTop = (parseFloat(cs.paddingTop) + d / 2 / fz) + "px"; fillIn.style.paddingBottom = (parseFloat(cs.paddingBottom) + d / 2 / fz) + "px";
+              fillIn.__roFillPad = keep;
+            }
+          }
         }
       };
       var later = function () { if (!queued) { queued = true; setTimeout(run, 16); } };
