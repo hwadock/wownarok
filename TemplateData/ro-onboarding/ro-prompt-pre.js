@@ -2757,6 +2757,10 @@ mergeInto(LibraryManager.library, {
       var take = function (r) {
         if (!r) return "";
         if (r.status === 202) return r.json().then(queueUp);
+        if (r.status === 503) return r.json().catch(function () { return {}; }).then(function (j) {   // 서버 a1e68559d: 503 {"error","reason":"credit"} = OpenAI·컴피 크레딧 모두 없음
+          if (epoch === uploadEpoch) { st.upErr = 503; if (j && j.reason === "credit") st.credit = true; }
+          throw new Error("start 503");
+        });
         if (!r.ok) { if (epoch === uploadEpoch) st.upErr = r.status; throw new Error("start " + r.status); }
         return r.json().then(function (j) { return j && j.job || ""; });
       };
@@ -2886,6 +2890,17 @@ mergeInto(LibraryManager.library, {
           var bk = card.querySelector(".ro-step-back"); if (bk) bk.before(note); else card.appendChild(note);   // 뒤로가기 버튼 위에
         }).catch(function () {});
     };
+    // 얼굴·옷 생성이 크레딧 부족으로 막혔을 때(2026-11-27 사용자 "생성 불가(크레딧 부족) 안내를 띄우고 랜덤 캐릭터로 자동 선택") — 화면 위 가운데 안내 4초.
+    //   로그인 흐름 카드·게임 화면(늦은 얼굴 끼우기) 어디서든 보이게 body 맨 위에 붙인다. 누름은 받지 않는다
+    var creditNote = function () {
+      var old = document.getElementById("ro-credit-note"); if (old) old.remove();
+      var n = document.createElement("div"); n.id = "ro-credit-note"; n.setAttribute("role", "status");
+      n.style.cssText = "position:fixed;left:50%;top:14%;transform:translateX(-50%);z-index:2147483001;width:min(86vw,380px);box-sizing:border-box;padding:12px 16px;pointer-events:none;" +
+        "border:3px solid #C9963F;border-radius:16px;background:radial-gradient(ellipse at top,#71462c,#352014 80%);color:#fff1cd;text-align:center;box-shadow:0 10px 30px #000a;font-size:15px;font-weight:800;line-height:1.5;transition:opacity .4s";
+      n.innerHTML = "생성 불가(크레딧 부족)<div style='font-size:13px;font-weight:600;opacity:.85'>랜덤 캐릭터로 시작합니다</div>";
+      document.body.appendChild(n);
+      setTimeout(function () { n.style.opacity = "0"; setTimeout(function () { n.remove(); }, 450); }, 4000);
+    };
     // 관리 툴에서 끈 기능(얼굴 서버 /service/status 의 "off")은 그 물음 카드부터 아예 건너뛴다(2026-11-14 사용자 "꺼 두면 얼굴 생성·보이스 생성 화면이 아예 안 나오게").
     //   흐름을 열 때 한 번 묻고, 물음 카드 차례에 아직 답이 없으면 2.5초까지 기다린다(못 물으면 평소대로 보여 줌 — 서버가 만들기를 거절한다).
     var svcOff = { face: false, voice: false };
@@ -2911,7 +2926,7 @@ mergeInto(LibraryManager.library, {
       askTiles([[make, "<rect x='6' y='16' width='52' height='38' rx='7'/><path d='M22 16 l5 -7 h10 l5 7'/><circle cx='32' cy='35' r='10'/>", "나만의<br>캐릭터", "TemplateData/ro-onboarding/make/make_custom.webp"],
                 [no, "<circle cx='32' cy='32' r='24'/><circle cx='24' cy='28' r='2.5' fill='currentColor'/><circle cx='40' cy='28' r='2.5' fill='currentColor'/><path d='M22 40 q10 9 20 0'/>", "랜덤<br>캐릭터", "TemplateData/ro-onboarding/make/make_random.webp"]]);   // 마법 거울 = 내 얼굴로 / 마법 모자 = 무작위(시안 C)
       c.card.appendChild(c.stepBack(showPin));   // 뒤로가기 = 3 비밀번호
-      serviceDown("face", make, c.card, "나만의 캐릭터 만들기가 잠시 멈췄어요 · 랜덤 캐릭터로 시작해 주세요");
+      serviceDown("face", make, c.card, "생성 불가(크레딧 부족) · 랜덤 캐릭터로 시작해 주세요");
     };
     showPhoto = function () {
       stopCam();
@@ -3486,7 +3501,7 @@ mergeInto(LibraryManager.library, {
       var poll = function () {
         uploadPromise.then(function (job) {
           if (run !== progressRun) return;
-          if (!job) { result = { job: job, ok: [] }; if (loadUi) loadUi(0, st.upErr === 429 ? "요청이 많아요 · 잠시 후 다시 시도해 주세요" : "사진 전송 실패 · 사진을 다시 넣어 주세요"); finishGeneration(); return; }
+          if (!job) { result = { job: job, ok: [] }; if (loadUi) loadUi(0, st.upErr === 429 ? "요청이 많아요 · 잠시 후 다시 시도해 주세요" : st.upErr === 503 ? "생성 불가(크레딧 부족) · 랜덤 캐릭터로 시작합니다" : "사진 전송 실패 · 사진을 다시 넣어 주세요"); finishGeneration(); return; }
           if (!jobSeen) { jobSeen = true; progressStarted = Date.now(); }
           progressAbort = new AbortController();
           var timeout = setTimeout(function () { if (run === progressRun && progressAbort) progressAbort.abort(); }, 12000);
@@ -3496,6 +3511,11 @@ mergeInto(LibraryManager.library, {
             errors = 0;
             var done = status.done || [], failed = status.fail || [], ok = [], n = Math.max(done.length, failed.length), over = n > 0;
             for (var i = 0; i < n; i++) { if (done[i]) ok.push(i); else if (!failed[i]) over = false; }
+            if (status.reason === "credit" && !ok.length) {   // 만드는 도중 크레딧이 떨어짐(서버 a1e68559d) — 기다려도 안 나온다: 안내 + 랜덤 캐릭터(fail 이 받음)
+              st.credit = true; result = { job: job, ok: [] };
+              if (loadUi) loadUi(lastPct, "생성 불가(크레딧 부족) · 랜덤 캐릭터로 시작합니다");
+              finishGeneration(); return;
+            }
             var elapsed = (Date.now() - progressStarted) / 1000;
             var expired = elapsed > Math.max(120, (status.expect || 20) * 6);
             if (loadUi) loadUi((over || expired) && ok.length ? 100 : Math.min(95, elapsed / Math.max(10, status.expect || 20) * 100), ok.length + " / " + (n || 2) + "장 완성 · 진행률은 예상치입니다", !over && !expired);
@@ -3567,6 +3587,7 @@ mergeInto(LibraryManager.library, {
     };
 
     var fail = function () {
+      if (st.credit) { creditNote(); useDefaultFace(); return; }   // 크레딧 부족(올릴 때 503 credit·만드는 도중 reason credit) = 안내 + 랜덤 캐릭터(2026-11-27 사용자)
       if (st.upErr === 503) { useDefaultFace(); return; }   // 크레딧 소진·관리 툴 꺼짐 = 다시 해도 안 됨 → 바로 기본 얼굴로(2026-11-14 사용자 "막히면 자동으로 기본으로")
       st.photoFails = (st.photoFails || 0) + 1;
       if (st.photoFails >= 2) { useDefaultFace(); return; }   // 거듭 실패 = 기본 얼굴로 자동 진행(사용자 2026-11-10)
@@ -3759,6 +3780,7 @@ mergeInto(LibraryManager.library, {
               var done = s.done || [], failed = s.fail || [], n = Math.max(done.length, failed.length), over = n > 0, first = -1;
               for (var i = 0; i < n; i++) { if (done[i]) { if (first < 0) first = i; } else if (!failed[i]) over = false; }
               var expired = (Date.now() - t0) / 1000 > Math.max(120, (s.expect || 20) * 6);
+              if (first < 0 && s.reason === "credit") { st.credit = true; autoFail(); return; }   // 만드는 도중 크레딧 부족 — 바로 안내 + 기본(랜덤) 얼굴
               if (first >= 0) autoPick(run, job, first, 0);   // 생성 1장째 그대로(고르기 없음)
               else if (over || expired) autoFail();
               else setTimeout(poll, 1000);
@@ -3791,6 +3813,7 @@ mergeInto(LibraryManager.library, {
     };
     var autoFail = function () {
       var run = ++autoRun;
+      if (st.credit) { if (st.job) { discardJob(st.job); st.job = ""; } st.up = null; creditNote(); autoLate(""); return; }   // 크레딧 부족 — 다시 해도 안 됨: 안내 + 묻지 않고 기본 얼굴(2026-11-27 사용자)
       st.photoFails = (st.photoFails || 0) + 1;
       if (st.job) { discardJob(st.job); st.job = ""; } st.up = null;
       if (st.upErr === 503 || st.photoFails >= 2) { autoLate(""); return; }   // 다시 해도 안 됨·거듭 실패 = 묻지 않고 기본 얼굴(2026-11-10·11-14 사용자)
