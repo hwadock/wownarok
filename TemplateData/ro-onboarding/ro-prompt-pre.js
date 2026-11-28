@@ -1094,18 +1094,19 @@ mergeInto(LibraryManager.library, {
       };
       // 테두리 그림(428×600)의 투명 여백(인간 왼14·위5·오른2·아래8px, 오크 왼5·위9·오른4·아래5px)만큼 키워 불투명 테두리를 칸(뒷판) 가장자리에 맞춘다
       var FRAME_FIT = { human: "left:-3.4%;top:-.85%;width:103.88%;height:102.21%", orc: "left:-1.19%;top:-1.54%;width:102.15%;height:102.39%" };
+      // 카드 글은 카드 폭(cqw)에 맞춘다 — 화면이 낮으면 카드가 46vh 에 묶여 좁아지는데 글은 화면 폭(vw) 기준이라, 폭 365px 에서 부제가 두 줄로 꺾여 문장 그림을 덮었다(QA v0.1.224). 부제는 한 줄 고정, cqw 를 모르는 브라우저는 앞의 vw 값 그대로
       info.forEach(function (item, idx) {
         var tile = document.createElement("button"); tile.type = "button"; tile.className = "ro-race-tile";
-        tile.style.cssText = "position:relative;flex:1;min-width:0;aspect-ratio:5/7;max-height:46vh;padding:0;border:0;border-radius:12px;overflow:hidden;color:#F6E6C5;cursor:pointer;font-family:inherit;" +
+        tile.style.cssText = "position:relative;flex:1;min-width:0;aspect-ratio:5/7;container-type:inline-size;max-height:46vh;padding:0;border:0;border-radius:12px;overflow:hidden;color:#F6E6C5;cursor:pointer;font-family:inherit;" +
           "background:#000 url(" + RD + "pattern_" + item.key + ".webp) center/128px repeat;transition:box-shadow .15s,filter .18s,transform .18s";
         tile.innerHTML =
           "<span aria-hidden='true' style='position:absolute;inset:0;background:linear-gradient(180deg,transparent 52%,#0E0905e6 82%)'></span>" +
           "<span class='ro-race-halo' aria-hidden='true' style='position:absolute;left:50%;top:31%;width:72%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle," + item.glow + " 0,transparent 66%);transition:opacity .18s'></span>" +
           "<img alt='' draggable='false' style='position:absolute;left:50%;top:31%;width:72%;max-height:44%;object-fit:contain;transform:translate(-50%,-50%);filter:drop-shadow(0 6px 6px #0009)' src='" + RD + "emblem_" + item.key + ".webp'>" +
           "<span style='position:absolute;left:0;right:0;bottom:15%;display:flex;flex-direction:column;align-items:center;gap:2px;padding:0 10px'>" +
-            "<span style='font-size:clamp(20px,6.4vw,28px);font-weight:900;text-shadow:0 2px 0 #000c,0 0 6px #000a'>" + item.name + "</span>" +
-            "<span style='font-size:clamp(12px,3.5vw,15px);font-weight:800;color:" + item.edge + ";text-shadow:0 1px 0 #000c'>" + item.title + "</span>" +
-            "<span style='font-size:clamp(10px,2.7vw,12px);color:#E1D2B8;line-height:1.3;text-shadow:0 1px 0 #000c'>" + item.desc + "</span></span>" +
+            "<span style='font-size:clamp(20px,6.4vw,28px);font-size:clamp(15px,14cqw,28px);font-weight:900;text-shadow:0 2px 0 #000c,0 0 6px #000a'>" + item.name + "</span>" +
+            "<span style='font-size:clamp(12px,3.5vw,15px);font-size:clamp(9px,9.5cqw,15px);white-space:nowrap;font-weight:800;color:" + item.edge + ";text-shadow:0 1px 0 #000c'>" + item.title + "</span>" +
+            "<span style='font-size:clamp(10px,2.7vw,12px);font-size:clamp(9px,7.6cqw,12px);color:#E1D2B8;line-height:1.22;text-shadow:0 1px 0 #000c'>" + item.desc + "</span></span>" +
           "<img alt='' draggable='false' aria-hidden='true' style='position:absolute;" + FRAME_FIT[item.key] + ";pointer-events:none' src='" + RD + "frame_" + item.key + ".webp'>" +
           "<span class='ro-race-check' aria-hidden='true' style='position:absolute;right:9%;top:6%;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:" + item.edge + ";color:#2E2018;font-size:18px;font-weight:900;border:2px solid #2E2018;box-shadow:0 2px 6px #0007;transition:transform .18s,opacity .18s'>✓</span>";
         // 종족 외침(2026-11-11 사용자 "종족 선택할 때도 성우 사운드") — race_voice/<human|orc>.mp3(사운드 세션), 다시 누르면 앞 소리를 끊고 새로.
